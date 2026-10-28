@@ -2,132 +2,201 @@ import {
   useEffect,
   useRef,
   useState,
+  type FormEvent,
   type ReactNode,
-  type ButtonHTMLAttributes,
-  useId,
 } from "react"
 import {
-  BookOpen,
   LayoutDashboard,
   CalendarDays,
-  Timer,
+  BookOpen,
+  ClipboardCheck,
   ChartNoAxesCombined,
   FolderOpen,
-  Sparkles,
-  FileText,
   Settings,
+  Plus,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Sparkles,
+  Check,
+  AlertTriangle,
+  Play,
+  Pause,
+  X,
+  Trash2,
+  Pencil,
+  FileText,
+  Send,
+  RotateCcw,
+  Menu,
+  Target,
   CircleHelp,
   Search,
   Bell,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpRight,
-  Check,
-  Clock3,
-  X,
-  ArrowRight,
-  Play,
-  CheckCheck,
-  AlertTriangle,
-  Upload,
-  Pause,
-  Circle,
-  ArrowLeft,
-  ShieldCheck,
+  Home,
 } from "lucide-react"
-type Task = {
-  id: number
-  title: string
-  course: string
-  time: string
-  done: boolean
-  effort: number
-  priority: string
-  deadline: string
-}
-const initialTasks: Task[] = [
+import {
+  type AcademicTask,
+  type AvailabilitySlot,
+  type Commitment,
+  type PlannedStudyBlock,
+  type StudyPlan,
+  type QuizAttempt,
+  type StudySession,
+  type SessionOutcome,
+  type LearningMaterial,
+  type AssessmentResult,
+  type VerifiedQuestion,
+  localDate,
+  fromLocalDate,
+  addDays,
+  startOfWeek,
+  formatDate,
+  formatTime,
+  daysUntil,
+  validateTask,
+  generatePlan,
+  gradeAttempt,
+} from "./domain"
+import "./app.css"
+import Landing from "./Landing"
+import AssistantPanel from "./AssistantPanel"
+import {
+  demoAssistantService,
+  type AssistantAction,
+  type AssistantChoice,
+  type AssistantContext,
+  type AssistantMessage,
+} from "./assistant"
+
+type Page = "Dashboard" | "Planner" | "Study" | "Quiz" | "Results" | "Materials"
+const nav = [
+  { id: "Dashboard" as Page, label: "Tổng quan", icon: LayoutDashboard },
+  { id: "Planner" as Page, label: "Lập kế hoạch", icon: CalendarDays },
+  { id: "Study" as Page, label: "Học tập", icon: BookOpen },
+  { id: "Quiz" as Page, label: "Bài ôn tập", icon: ClipboardCheck },
+  { id: "Results" as Page, label: "Kết quả", icon: ChartNoAxesCombined },
+  { id: "Materials" as Page, label: "Tài liệu", icon: FolderOpen },
+]
+const today = () => new Date()
+const nextDate = (days: number) => localDate(addDays(today(), days))
+const demoTasks: AcademicTask[] = [
   {
-    id: 1,
-    title: "Ôn tập ghi chú bài giảng",
-    course: "Giải tích",
-    time: "09:00 – 10:00",
-    done: true,
-    effort: 60,
-    priority: "Trung bình",
-    deadline: "2025-04-25",
-  },
-  {
-    id: 2,
+    id: "task-1",
     title: "Luyện đạo hàm riêng",
     course: "Giải tích",
-    time: "10:30 – 11:30",
-    done: false,
-    effort: 60,
+    deadline: nextDate(3),
+    estimatedMinutes: 120,
+    remainingMinutes: 120,
     priority: "Cao",
-    deadline: "2025-04-28",
+    confirmed: true,
   },
   {
-    id: 3,
-    title: "Họp dự án nhóm",
+    id: "task-2",
+    title: "Hoàn thiện báo cáo nhóm",
     course: "Kỹ thuật phần mềm",
-    time: "14:00 – 15:00",
-    done: false,
-    effort: 60,
+    deadline: nextDate(5),
+    estimatedMinutes: 90,
+    remainingMinutes: 90,
     priority: "Trung bình",
-    deadline: "2025-04-25",
+    confirmed: true,
   },
   {
-    id: 4,
-    title: "Chuẩn bị bài thực hành mạng",
+    id: "task-3",
+    title: "Ôn mô hình OSI",
     course: "Mạng máy tính",
-    time: "16:00 – 17:00",
-    done: false,
-    effort: 60,
-    priority: "Trung bình",
-    deadline: "2025-05-02",
+    deadline: nextDate(7),
+    estimatedMinutes: 60,
+    remainingMinutes: 60,
+    priority: "Thấp",
+    confirmed: true,
   },
 ]
-const deadlines = [
+const demoSlots: AvailabilitySlot[] = [0, 1, 2, 3, 4, 5].map((day) => ({
+  id: `slot-${day}`,
+  day,
+  startMinute: 17 * 60,
+  endMinute: 19 * 60,
+}))
+const questions: VerifiedQuestion[] = [
   {
-    title: "Báo cáo dự án",
-    course: "Kỹ thuật phần mềm",
-    date: "25 tháng 4",
-    days: "còn 4 ngày",
-    urgent: true,
-  },
-  {
-    title: "Bài tập 3",
+    id: "q1",
     course: "Giải tích",
-    date: "28 tháng 4",
-    days: "còn 7 ngày",
-    urgent: false,
+    topic: "Đạo hàm riêng",
+    prompt: "Với f(x, y) = x²y + 3y, đạo hàm riêng theo x là gì?",
+    choices: ["2xy", "x² + 3", "2x + 3y", "x²y"],
+    answerIndex: 0,
+    status: "demo",
+    sourceId: "passage-1",
   },
   {
-    title: "Thi giữa kỳ",
-    course: "Mạng máy tính",
-    date: "2 tháng 5",
-    days: "còn 11 ngày",
-    urgent: false,
+    id: "q2",
+    course: "Giải tích",
+    topic: "Đạo hàm riêng",
+    prompt: "Khi lấy đạo hàm riêng theo y, biến x được xem như thế nào?",
+    choices: ["Là biến phụ thuộc", "Là hằng số", "Bằng 0", "Bằng 1"],
+    answerIndex: 1,
+    status: "demo",
+    sourceId: "passage-1",
+  },
+  {
+    id: "q3",
+    course: "Giải tích",
+    topic: "Đạo hàm riêng",
+    prompt: "Với f(x, y) = x²y + 3y, đạo hàm riêng theo y là gì?",
+    choices: ["2xy", "x² + 3", "x²y", "3y"],
+    answerIndex: 1,
+    status: "demo",
+    sourceId: "passage-1",
   },
 ]
-const destinations = [
-  { name: "Dashboard", label: "Tổng quan", icon: LayoutDashboard },
-  { name: "Planner", label: "Lập kế hoạch", icon: CalendarDays },
-  { name: "Study", label: "Học tập", icon: BookOpen },
-]
+const passage = {
+  id: "passage-1",
+  title: "Đoạn ví dụ do nhóm biên soạn",
+  topic: "Đạo hàm riêng",
+  text: "Đạo hàm riêng của hàm nhiều biến được tính theo một biến trong khi giữ các biến còn lại cố định. Ví dụ, với f(x, y) = x²y + 3y, ta có ∂f/∂x = 2xy và ∂f/∂y = x² + 3.",
+  status: "demo" as const,
+}
+const storageKey = "studyflow-demo-v1"
+const readStore = () => {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey) || "{}")
+  } catch {
+    return {}
+  }
+}
+const id = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 function Button({
-  className = "",
   children,
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  onClick,
+  variant = "secondary",
+  disabled,
+  type = "button",
+  className = "",
+  title,
+}: {
+  children: ReactNode
+  onClick?: () => void
+  variant?: "primary" | "secondary" | "ghost" | "danger"
+  disabled?: boolean
+  type?: "button" | "submit"
+  className?: string
+  title?: string
+}) {
   return (
-    <button type="button" className={`button ${className}`} {...props}>
+    <button
+      type={type}
+      className={`sf-button sf-${variant} ${className}`}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
       {children}
     </button>
   )
 }
-function Card({
+function Panel({
   title,
   action,
   children,
@@ -139,18 +208,44 @@ function Card({
   className?: string
 }) {
   return (
-    <section
-      id={className === "focus-hero" ? "focus-card" : undefined}
-      className={`card ${className}`}
-    >
+    <section className={`sf-panel ${className}`}>
       {title && (
-        <div className="card-heading">
+        <div className="sf-panel-head">
           <h2>{title}</h2>
           {action}
         </div>
       )}
       {children}
     </section>
+  )
+}
+function Badge({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode
+  tone?: "neutral" | "blue" | "green" | "amber" | "violet" | "red"
+}) {
+  return <span className={`sf-badge sf-badge-${tone}`}>{children}</span>
+}
+function Empty({
+  icon: Icon,
+  title,
+  body,
+  action,
+}: {
+  icon: typeof FolderOpen
+  title: string
+  body: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="sf-empty">
+      <Icon size={28} />
+      <h3>{title}</h3>
+      <p>{body}</p>
+      {action}
+    </div>
   )
 }
 function Modal({
@@ -163,41 +258,32 @@ function Modal({
   children: ReactNode
 }) {
   const ref = useRef<HTMLDialogElement>(null)
-  const headingId = useId()
   useEffect(() => {
-    const dialog = ref.current
     const previous = document.activeElement as HTMLElement | null
-    const overflow = document.body.style.overflow
-    dialog?.showModal()
-    document.body.style.overflow = "hidden"
+    ref.current?.showModal()
     return () => {
-      dialog?.close()
-      document.body.style.overflow = overflow
-      if (previous?.isConnected) previous.focus()
+      ref.current?.close()
+      previous?.focus()
     }
   }, [])
   return (
     <dialog
       ref={ref}
-      className="modal-frame"
-      aria-labelledby={headingId}
-      onCancel={(event) => {
-        event.preventDefault()
+      className="sf-dialog"
+      onCancel={(e) => {
+        e.preventDefault()
         close()
       }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) close()
+      onClick={(e) => {
+        if (e.target === e.currentTarget) close()
       }}
+      aria-label={title}
     >
-      <div className="modal">
-        <div className="modal-heading">
-          <h2 id={headingId}>{title}</h2>
-          <Button
-            className="icon-button"
-            onClick={close}
-            aria-label="Đóng hộp thoại"
-          >
-            <X aria-hidden="true" size={20} />
+      <div className="sf-dialog-inner">
+        <div className="sf-panel-head">
+          <h2>{title}</h2>
+          <Button variant="ghost" onClick={close} title="Đóng">
+            <X size={18} />
           </Button>
         </div>
         {children}
@@ -207,1690 +293,2636 @@ function Modal({
 }
 
 export default function App() {
-  const [page, setPage] = useState("Dashboard"),
-    [tasks, setTasks] = useState(initialTasks),
-    [query, setQuery] = useState(""),
-    [modal, setModal] = useState(""),
-    [notice, setNotice] = useState(""),
-    [week, setWeek] = useState(0),
-    [selectedDay, setSelectedDay] = useState(0),
-    [period, setPeriod] = useState("Week")
-  const [edit, setEdit] = useState<Task | null>(null),
-    [name, setName] = useState(""),
-    [course, setCourse] = useState("Giải tích"),
-    [effort, setEffort] = useState(30),
-    [remaining, setRemaining] = useState(30),
-    [priority, setPriority] = useState("Trung bình"),
-    [deadline, setDeadline] = useState("2025-04-25"),
-    [capacity, setCapacity] = useState(60),
-    [proposalDuration, setProposalDuration] = useState(30)
-  const [running, setRunning] = useState(false),
-    [seconds, setSeconds] = useState(1080),
-    [reflection, setReflection] = useState(""),
-    [sessionSaved, setSessionSaved] = useState(false),
-    [answer, setAnswer] = useState(""),
-    [quizState, setQuizState] = useState("setup"),
-    [reviewTab, setReviewTab] = useState("Practice"),
-    [revision, setRevision] = useState(false),
-    [filter, setFilter] = useState("Tất cả môn học")
-  const [files, setFiles] = useState<{
-    name: string
-    course: string
-    status: string
-  }[]>([])
-  const [studyMode, setStudyMode] =
-    useState<"overview" | "exercise" | "answer">("overview")
-  const [studyQuestion, setStudyQuestion] = useState("")
-  const [studyAnswer, setStudyAnswer] = useState("")
-  const [studyResponse, setStudyResponse] = useState("")
-  const [plannerPrompt, setPlannerPrompt] = useState("")
-  const [plannerSource, setPlannerSource] = useState("")
-  const uploadRef = useRef<HTMLInputElement>(null)
-  const plannerUploadRef = useRef<HTMLInputElement>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
-  const mainHeadingRef = useRef<HTMLHeadingElement>(null)
-  const firstPage = useRef(true)
+  const stored = useRef(readStore())
+  const [showLanding, setShowLanding] = useState(true)
+  const [page, setPage] = useState<Page>("Dashboard")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(
+    localDate(today()),
+  )
+  const [tasks, setTasks] = useState<AcademicTask[]>(
+    () => stored.current.tasks || demoTasks,
+  )
+  const [slots, setSlots] = useState<AvailabilitySlot[]>(
+    () => stored.current.slots || demoSlots,
+  )
+  const [commitments, setCommitments] = useState<Commitment[]>(
+    () => stored.current.commitments || [],
+  )
+  const [confirmed, setConfirmed] = useState<PlannedStudyBlock[]>(
+    () => stored.current.confirmed || [],
+  )
+  const [proposal, setProposal] = useState<StudyPlan | null>(null)
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [modal, setModal] =
+    useState<"task" | "availability" | "commitment" | "reflection" | "submit" | "settings" | "notifications" | null>(
+      null,
+    )
+  const [editing, setEditing] = useState<AcademicTask | null>(null)
+  const [notice, setNotice] = useState("")
+  const [mobileNav, setMobileNav] = useState(false)
+  const [study, setStudy] = useState<StudySession | null>(null)
+  const [assistantOpen, setAssistantOpen] = useState(false)
+  const [assistantBusy, setAssistantBusy] = useState(false)
+  const [assistantMessages, setAssistantMessages] =
+    useState<AssistantMessage[]>([
+      {
+        id: "welcome",
+        role: "assistant",
+        text: "Chào bạn! Mình có thể giúp tìm đúng bước tiếp theo trong StudyFlow. Hãy nói mục tiêu học tập của bạn hoặc chọn một yêu cầu gợi ý.",
+      },
+    ])
+  const [pendingReplanContext, setPendingReplanContext] =
+    useState<AssistantContext | null>(null)
+  const [assistantHandoff, setAssistantHandoff] =
+    useState<AssistantContext | null>(null)
+  const [outcomes, setOutcomes] = useState<SessionOutcome[]>(
+    () => stored.current.outcomes || [],
+  )
+  const [running, setRunning] = useState(false)
+  const [reflection, setReflection] = useState("")
+  const [questionText, setQuestionText] = useState("")
+  const [hintLevel, setHintLevel] = useState(0)
+  const [messages, setMessages] = useState<string[]>([])
+  const [quizIndex, setQuizIndex] = useState(0)
+  const [quizCourse, setQuizCourse] = useState("Giải tích")
+  const [quizTopic, setQuizTopic] = useState("Đạo hàm riêng")
+  const [answers, setAnswers] = useState<Record<string, number>>({})
+  const [result, setResult] = useState<AssessmentResult | null>(
+    () => stored.current.result || null,
+  )
+  const [revisionTask, setRevisionTask] = useState<AcademicTask | null>(null)
+  const [materials, setMaterials] = useState<LearningMaterial[]>([])
+  const [manualTitle, setManualTitle] = useState("")
+  const [manualText, setManualText] = useState("")
+  const [manualCourse, setManualCourse] = useState("Giải tích")
+  const [fileError, setFileError] = useState("")
+  const [taskForm, setTaskForm] = useState({
+    title: "",
+    course: "Giải tích",
+    deadline: nextDate(3),
+    estimatedMinutes: 60,
+    remainingMinutes: 60,
+    priority: "Trung bình" as AcademicTask["priority"],
+  })
+  const [availabilityForm, setAvailabilityForm] = useState({
+    day: 0,
+    start: "17:00",
+    end: "19:00",
+  })
+  const [commitmentForm, setCommitmentForm] = useState({
+    date: nextDate(1),
+    start: "14:00",
+    end: "15:00",
+    title: "",
+  })
+  const weekStart = addDays(startOfWeek(today()), weekOffset * 7)
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const activeTasks = tasks.filter((t) => t.remainingMinutes > 0)
+  const deadlineSoon = activeTasks.filter(
+    (t) => daysUntil(t.deadline) >= 0 && daysUntil(t.deadline) <= 7,
+  )
+  const doneCount = tasks.filter((t) => t.remainingMinutes === 0).length
+  const courseNames = [...new Set(tasks.map((t) => t.course))]
+  const visibleTasks = tasks.filter((t) =>
+    `${t.title} ${t.course}`
+      .toLocaleLowerCase("vi-VN")
+      .includes(searchQuery.toLocaleLowerCase("vi-VN")),
+  )
+  const availableQuestions = questions.filter(
+    (q) =>
+      q.course === quizCourse &&
+      q.topic.toLocaleLowerCase("vi-VN") ===
+        quizTopic.trim().toLocaleLowerCase("vi-VN") &&
+      q.status === "demo",
+  )
+  const currentQuestion = availableQuestions[quizIndex]
+  useEffect(() => {
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        tasks,
+        slots,
+        commitments,
+        confirmed,
+        outcomes,
+        result,
+      }),
+    )
+  }, [tasks, slots, commitments, confirmed, outcomes, result])
   useEffect(() => {
     document.documentElement.lang = "vi"
-  }, [])
-  useEffect(() => {
-    document.title = `${
-      {
-        Dashboard: "Tổng quan",
-        Planner: "Lập kế hoạch",
-        Study: "Học tập",
-        Review: "Ôn tập",
-        Materials: "Tài liệu",
-      }[page] || page
-    } | StudyFlow AI`
-    if (firstPage.current) {
-      firstPage.current = false
-      return
-    }
-    mainHeadingRef.current?.focus()
-    window.scrollTo({ top: 0, behavior: "instant" })
-  }, [page])
+    document.title = showLanding
+      ? "StudyFlow AI | Học đúng nhịp"
+      : `${nav.find((n) => n.id === page)?.label} | StudyFlow AI`
+  }, [page, showLanding])
   useEffect(() => {
     if (!running) return
-    const id = setInterval(() => setSeconds((v) => v + 1), 1000)
-    return () => clearInterval(id)
+    const timer = window.setInterval(
+      () =>
+        setStudy((s) =>
+          s ? { ...s, elapsedSeconds: s.elapsedSeconds + 1 } : s,
+        ),
+      1000,
+    )
+    return () => clearInterval(timer)
   }, [running])
-  useEffect(() => {
-    const fn = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault()
-        searchRef.current?.focus()
-      }
+  const goto = (next: Page) => {
+    setPage(next)
+    setShowLanding(false)
+    setMobileNav(false)
+    window.scrollTo({ top: 0, behavior: "instant" })
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>(".sf-main h1")?.focus(),
+    )
+  }
+  const openLanding = () => {
+    setShowLanding(true)
+    setMobileNav(false)
+    window.scrollTo({ top: 0, behavior: "instant" })
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>(".land-hero h1")?.focus(),
+    )
+  }
+  const notify = (text: string) => {
+    setNotice(text)
+    window.setTimeout(() => setNotice(""), 5000)
+  }
+  const openTask = (task?: AcademicTask) => {
+    setEditing(task || null)
+    setTaskForm(
+      task
+        ? {
+            title: task.title,
+            course: task.course,
+            deadline: task.deadline,
+            estimatedMinutes: task.estimatedMinutes,
+            remainingMinutes: task.remainingMinutes,
+            priority: task.priority,
+          }
+        : {
+            title: "",
+            course: "Giải tích",
+            deadline: nextDate(3),
+            estimatedMinutes: 60,
+            remainingMinutes: 60,
+            priority: "Trung bình",
+          },
+    )
+    setModal("task")
+  }
+  const saveTask = (e: FormEvent) => {
+    e.preventDefault()
+    const task: AcademicTask = {
+      id: editing?.id || id(),
+      ...taskForm,
+      confirmed: true,
     }
-    document.addEventListener("keydown", fn)
-    return () => document.removeEventListener("keydown", fn)
-  }, [])
-  const go = (p: string) => {
-    setPage(p)
-    setQuery("")
+    const error = validateTask(task)
+    if (error) {
+      notify(error)
+      return
+    }
+    setTasks((ts) =>
+      editing ? ts.map((t) => (t.id === editing.id ? task : t)) : [...ts, task],
+    )
+    setProposal(null)
+    setModal(null)
+    notify("Đã lưu công việc. Hãy tạo lại đề xuất lịch nếu cần.")
   }
-  const notify = (s: string) => {
-    setNotice(s)
+  const makePlan = () => {
+    const allTasks = revisionTask ? [...tasks, revisionTask] : tasks
+    const next = generatePlan(
+      allTasks,
+      slots,
+      commitments,
+      confirmed,
+      weekStart,
+    )
+    setProposal(next)
+    goto("Planner")
+    notify(
+      next.blocks.length
+        ? "Đề xuất đã sẵn sàng để xem và xác nhận."
+        : "Chưa thể xếp buổi học trong tuần này.",
+    )
   }
-  const date = new Date(2025, 3, 21 + week * 7)
-  const weekDays = Array.from(
-    { length: 7 },
-    (_, i) => new Date(2025, 3, 21 + week * 7 + i),
-  )
-  const plan = () => {
-    setProposalDuration(30)
-    setModal("proposal")
+  const approvePlan = () => {
+    if (!proposal) return
+    setConfirmed((bs) => [
+      ...bs,
+      ...proposal.blocks.map((b) => ({ ...b, status: "confirmed" as const })),
+    ])
+    if (revisionTask) {
+      setTasks((ts) => [...ts, revisionTask])
+      setRevisionTask(null)
+    }
+    setAssistantHandoff(null)
+    setProposal(null)
+    notify("Đã xác nhận lịch học trong bản demo.")
   }
+  const startStudy = (task?: AcademicTask, context?: AssistantContext) => {
+    const course = context
+      ? context.course || "Chưa chọn môn"
+      : task?.course || "Giải tích"
+    const topic = context
+      ? context.topic || "Chưa chọn chủ đề"
+      : task?.title || "Đạo hàm riêng"
+    setStudy({
+      id: id(),
+      course,
+      topic,
+      goal:
+        context?.goal ||
+        (task
+          ? `Tập trung vào ${task.title.toLowerCase()}`
+          : "Hiểu cách tính đạo hàm riêng"),
+      sourceId:
+        course === "Giải tích" && /đạo hàm riêng/i.test(topic)
+          ? "passage-1"
+          : undefined,
+      origin: context ? "assistant" : task ? "planner" : "direct",
+      status: "active",
+      elapsedSeconds: 0,
+    })
+    setRunning(true)
+    setMessages([])
+    setHintLevel(0)
+    goto("Study")
+  }
+  const submitQuiz = () => {
+    if (availableQuestions.some((q) => answers[q.id] === undefined)) {
+      notify(`Hãy trả lời đủ ${availableQuestions.length} câu trước khi gửi.`)
+      return
+    }
+    setModal("submit")
+  }
+  const confirmQuiz = () => {
+    const attempt: QuizAttempt = {
+      id: id(),
+      questionIds: availableQuestions.map((q) => q.id),
+      answers,
+      submittedAt: new Date().toISOString(),
+      mode: "demo",
+    }
+    setResult(gradeAttempt(availableQuestions, attempt))
+    setModal(null)
+    goto("Results")
+  }
+  const handoffRevision = () => {
+    if (!result) return
+    const task: AcademicTask = {
+      id: id(),
+      title: "Ôn tập đạo hàm riêng",
+      course: "Giải tích",
+      deadline: nextDate(7),
+      estimatedMinutes: 60,
+      remainingMinutes: 60,
+      priority: "Cao",
+      confirmed: true,
+    }
+    setRevisionTask(task)
+    setAssistantHandoff(null)
+    setProposal(null)
+    goto("Planner")
+    notify(
+      "Đã chuyển đề xuất ôn tập sang Planner. Lịch xác nhận chưa thay đổi.",
+    )
+  }
+  const applyAssistantAction = (
+    action: AssistantAction,
+    context: AssistantContext,
+  ) => {
+    setAssistantOpen(false)
+    if (action === "OPEN_PLANNER") {
+      setSearchQuery(context.course || "")
+      setAssistantHandoff(context)
+      goto("Planner")
+    } else if (action === "OPEN_TASK") {
+      goto("Planner")
+      setTaskForm((form) => ({
+        ...form,
+        course: context.course || form.course,
+        title: context.topic || form.title,
+        deadline: context.targetDate || form.deadline,
+      }))
+      setEditing(null)
+      setModal("task")
+    } else if (action === "OPEN_STUDY") {
+      startStudy(undefined, context)
+    } else if (action === "OPEN_QUIZ") {
+      setQuizCourse(
+        context.course || (context.topic ? "Chưa chọn môn" : "Giải tích"),
+      )
+      setQuizTopic(
+        context.topic ||
+          (context.course === "Giải tích" || !context.course
+            ? "Đạo hàm riêng"
+            : ""),
+      )
+      setQuizIndex(0)
+      setAnswers({})
+      goto("Quiz")
+    } else if (action === "OPEN_RESULTS") {
+      goto("Results")
+    } else if (action === "OPEN_MATERIALS") {
+      goto("Materials")
+    } else if (
+      action === "PROPOSE_REPLAN" &&
+      context.course &&
+      context.durationMinutes &&
+      context.targetDate
+    ) {
+      const proposedTask: AcademicTask = {
+        id: id(),
+        title: context.topic
+          ? `Ôn ${context.topic}`
+          : `Học thêm ${context.course}`,
+        course: context.course,
+        deadline: context.targetDate,
+        preferredDate: context.targetDate,
+        estimatedMinutes: context.durationMinutes,
+        remainingMinutes: context.durationMinutes,
+        priority: "Trung bình",
+        confirmed: true,
+      }
+      setRevisionTask(proposedTask)
+      setAssistantHandoff(context)
+      const targetWeek = startOfWeek(fromLocalDate(context.targetDate))
+      setWeekOffset(
+        Math.round(
+          (targetWeek.getTime() - startOfWeek(today()).getTime()) / 604800000,
+        ),
+      )
+      setProposal(
+        generatePlan(
+          [...tasks, proposedTask],
+          slots,
+          commitments,
+          confirmed,
+          targetWeek,
+        ),
+      )
+      goto("Planner")
+    }
+  }
+  const sendAssistant = (text: string) => {
+    if (assistantBusy || !text.trim()) return
+    setAssistantMessages((all) => [...all, { id: id(), role: "user", text }])
+    setAssistantBusy(true)
+    window.setTimeout(() => {
+      const knownCourse =
+        pendingReplanContext &&
+        [
+          ...courseNames,
+          "Giải tích",
+          "Mạng máy tính",
+          "Kỹ thuật phần mềm",
+        ].find((name) =>
+          text
+            .toLocaleLowerCase("vi-VN")
+            .includes(name.toLocaleLowerCase("vi-VN")),
+        )
+      const decision =
+        knownCourse && pendingReplanContext
+          ? {
+              intent: "REQUEST_REVISION" as const,
+              message: `Đã tạo đề xuất ${pendingReplanContext.durationMinutes} phút cho ${knownCourse} vào ${pendingReplanContext.targetDate}. Hãy kiểm tra trước khi xác nhận.`,
+              action: "PROPOSE_REPLAN" as const,
+              context: { ...pendingReplanContext, course: knownCourse },
+            }
+          : demoAssistantService.interpret({
+              text,
+              courses: [
+                ...new Set([
+                  ...courseNames,
+                  "Giải tích",
+                  "Mạng máy tính",
+                  "Kỹ thuật phần mềm",
+                ]),
+              ],
+              hasResult: !!result,
+              now: today(),
+            })
+      setAssistantMessages((all) => [
+        ...all,
+        {
+          id: id(),
+          role: "assistant",
+          text: decision.message,
+          choices: decision.choices,
+          intent: decision.intent,
+        },
+      ])
+      setPendingReplanContext(
+        decision.action === "NONE" &&
+          decision.context.durationMinutes &&
+          decision.context.targetDate &&
+          !decision.context.course
+          ? decision.context
+          : null,
+      )
+      setAssistantBusy(false)
+      if (decision.action !== "NONE")
+        applyAssistantAction(decision.action, decision.context)
+    }, 240)
+  }
+  const chooseAssistant = (choice: AssistantChoice) => {
+    setAssistantMessages((all) => [
+      ...all,
+      { id: id(), role: "user", text: choice.label },
+    ])
+    setPendingReplanContext(null)
+    applyAssistantAction(choice.action, choice.context)
+  }
+  const dateLabel = (date: string) => {
+    const days = daysUntil(date)
+    return days < 0
+      ? "Đã quá hạn"
+      : days === 0
+        ? "Hôm nay"
+        : days === 1
+          ? "Ngày mai"
+          : `Còn ${days} ngày`
+  }
+  if (showLanding) return <Landing open={goto} />
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content">
+    <div className="sf-app">
+      <a href="#main" className="skip-link">
         Bỏ qua đến nội dung chính
       </a>
-      <header className="topbar">
-        <div className="brand">
+      <aside className={`sf-sidebar ${mobileNav ? "open" : ""}`}>
+        <div className="sf-logo">
           <img
-            className="brand-logo"
             src="/brand/logo-horizontal-light-transparent.png"
             alt="StudyFlow AI"
-            width={1600}
-            height={400}
-            fetchPriority="high"
           />
-        </div>
-        <div className="search-wrap">
-          <Search aria-hidden="true" size={17} />
-          <input
-            ref={searchRef}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              if (page !== "Planner") setPage("Planner")
-            }}
-            placeholder="Tìm kiếm công việc..."
-            aria-label="Tìm kiếm công việc"
-          />
-          <kbd>⌘ K</kbd>
-        </div>
-        <div className="top-actions">
-          <Button
-            className="icon-button notification"
-            aria-label="Thông báo"
-            onClick={() => setModal("notifications")}
+          <button
+            className="sf-mobile-close"
+            onClick={() => setMobileNav(false)}
+            aria-label="Đóng menu"
           >
-            <Bell aria-hidden="true" size={19} />
-            <i />
-          </Button>
-          <span className="top-divider" />
-          <Button
-            className="profile"
-            aria-label="Tài khoản sinh viên"
-            onClick={() => setModal("account")}
-          >
-            <span className="avatar">S</span>
-            <span>Sinh viên</span>
-            <ChevronDown aria-hidden="true" size={14} />
-          </Button>
+            <X size={20} />
+          </button>
         </div>
-      </header>
-      <aside className="sidebar">
+        <div className="sf-sidebar-label">KHÔNG GIAN HỌC TẬP</div>
         <nav aria-label="Điều hướng chính">
-          {destinations.map((n) => (
-            <Button
-              key={n.name}
-              className={`nav-item ${page === n.name ? "active" : ""}`}
-              aria-label={n.name}
-              aria-current={page === n.name ? "page" : undefined}
-              onClick={() => go(n.name)}
+          {nav.map((n) => (
+            <button
+              key={n.id}
+              className={`sf-nav ${page === n.id ? "active" : ""}`}
+              onClick={() => goto(n.id)}
+              aria-current={page === n.id ? "page" : undefined}
             >
               <n.icon size={19} />
               <span>{n.label}</span>
-              {page === n.name && <i />}
-            </Button>
+              {page === n.id && <span className="sf-nav-dot" />}
+            </button>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <Button
-            className="nav-item"
-            aria-label="Cài đặt"
-            onClick={() => setModal("settings")}
-          >
-            <Settings aria-hidden="true" size={18} />
-            <span>Cài đặt</span>
-          </Button>
-          <Button
-            className="nav-item"
-            aria-label="Trợ giúp và phản hồi"
-            onClick={() => setModal("help")}
-          >
-            <CircleHelp aria-hidden="true" size={18} />
-            <span>Trợ giúp & phản hồi</span>
-            <ArrowUpRight aria-hidden="true" size={13} />
-          </Button>
+        <div className="sf-sidebar-bottom">
+          <button className="sf-loop" onClick={() => startStudy()}>
+            <Sparkles size={18} />
+            <strong>Học cùng Copilot</strong>
+            <p>
+              Bắt đầu buổi học và xem gợi ý minh họa theo từng bước{" "}
+              <ArrowRight size={13} />
+            </p>
+          </button>
+          <button className="sf-nav" onClick={openLanding}>
+            <Home size={18} /> Trang giới thiệu
+          </button>
+          <button className="sf-nav" onClick={() => setModal("settings")}>
+            <Settings size={18} />
+            Cài đặt & trợ giúp
+          </button>
+          <div className="sf-demo-note">
+            Bản demo frontend · dữ liệu lưu trên thiết bị
+          </div>
         </div>
       </aside>
-      <main className="main-content" id="main-content" tabIndex={-1}>
-        <div className="page-heading">
-          <div>
-            <h1 ref={mainHeadingRef} tabIndex={-1}>
-              {{
-                Dashboard: "Tổng quan",
-                Planner: "Lập kế hoạch",
-                Study: "Học tập",
-                Review: "Ôn tập",
-                Materials: "Tài liệu",
-              }[page] || page}
-            </h1>
-            <p>
-              {page === "Dashboard"
-                ? "Tổng quan việc học và lịch trong tuần."
-                : page === "Planner"
-                  ? "Quản lý công việc, thời gian rảnh và kế hoạch đã xác nhận."
-                  : page === "Study"
-                    ? "Đọc tài liệu và ghi chú cho buổi học."
-                    : page === "Review"
-                      ? "Luyện câu hỏi và xem lại câu trả lời."
-                      : "Ghi chú và tài liệu môn học của bạn ở một nơi."}
-            </p>
+      {mobileNav && (
+        <button
+          className="sf-scrim"
+          onClick={() => setMobileNav(false)}
+          aria-label="Đóng menu"
+        />
+      )}
+      <div className="sf-body">
+        <header className="sf-topbar">
+          <button
+            className="sf-menu"
+            onClick={() => setMobileNav(true)}
+            aria-label="Mở menu"
+          >
+            <Menu size={22} />
+          </button>
+          <div className="sf-breadcrumb">
+            <span className="sf-breadcrumb-prefix">Không gian học tập</span>{" "}
+            <ChevronRight size={15} className="sf-breadcrumb-chevron" />{" "}
+            <strong>{nav.find((n) => n.id === page)?.label}</strong>
           </div>
-          {page === "Planner" ? (
-            <Button className="primary" onClick={plan}>
-              <Sparkles aria-hidden="true" size={16} />
-              Tạo kế hoạch học
-            </Button>
-          ) : page === "Study" ? (
-            <Button
-              className="primary"
-              onClick={() => uploadRef.current?.click()}
-            >
-              <Upload aria-hidden="true" size={16} />
-              Thêm tài liệu
-            </Button>
-          ) : null}
-        </div>
-        {page === "Dashboard" && (
-          <>
-            <div
-              className="dashboard-summary"
-              role="group"
-              aria-label="Tổng quan việc học"
-            >
-              <Card className="summary-card summary-purple">
-                <div className="summary-main">
-                  <span className="summary-icon">
-                    <CheckCheck aria-hidden="true" size={27} />
-                  </span>
-                  <div>
-                    <strong>
-                      3 <span>/ 5</span>
-                    </strong>
-                    <p>Công việc đã hoàn thành</p>
-                  </div>
-                </div>
-                <div
-                  className="summary-progress"
-                  role="progressbar"
-                  aria-label="Công việc minh họa đã hoàn thành"
-                  aria-valuenow={3}
-                  aria-valuemin={0}
-                  aria-valuemax={5}
-                >
-                  <i />
-                </div>
-              </Card>
-              <Card className="summary-card summary-rose">
-                <Button
-                  className="summary-link"
-                  onClick={() => {
-                    go("Planner")
-                  }}
-                  aria-label="Xem các hạn chót sắp tới"
-                >
-                  <div className="summary-main">
-                    <span className="summary-icon">
-                      <CalendarDays aria-hidden="true" size={27} />
-                    </span>
-                    <div>
-                      <strong>2</strong>
-                      <p>Hạn chót sắp tới</p>
-                    </div>
-                  </div>
-                  <ChevronRight aria-hidden="true" size={20} />
-                </Button>
-              </Card>
-              <Card className="summary-card summary-green">
-                <div className="summary-main">
-                  <span className="summary-icon">
-                    <ChartNoAxesCombined aria-hidden="true" size={29} />
-                  </span>
-                  <div>
-                    <strong>
-                      5 <span>ngày</span>
-                    </strong>
-                    <p>Chuỗi ngày học</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="summary-card summary-blue">
-                <div className="summary-main">
-                  <span className="summary-icon">
-                    <Clock3 aria-hidden="true" size={28} />
-                  </span>
-                  <div>
-                    <strong>
-                      12,5 <span>giờ</span>
-                    </strong>
-                    <p>Tổng thời gian học (tuần này)</p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-            <div className="dashboard-today-grid">
-              <Card
-                title="Việc cần làm hôm nay"
-                action={<span className="count-label">{tasks.length} CÔNG VIỆC</span>}
-              >
-                <div className="today-task-list">
-                  {tasks.slice(0, 4).map((task) => (
-                    <div className={`today-task-row ${task.done ? "complete" : ""}`} key={task.id}>
-                      <input
-                        type="checkbox"
-                        className="task-checkbox"
-                        checked={task.done}
-                        aria-label={`Đánh dấu ${task.title} ${task.done ? "chưa hoàn thành" : "hoàn thành"}`}
-                        onChange={() =>
-                          setTasks(tasks.map((item) =>
-                            item.id === task.id ? { ...item, done: !item.done } : item,
-                          ))
-                        }
-                      />
-                      <div className="task-info">
-                        <strong>{task.title}</strong>
-                        <span>{task.course}</span>
-                      </div>
-                      <span className="task-time">{task.time}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-              <Card
-                title="Deadline sắp tới"
-                action={<span className="count-label">{deadlines.length} HẠN CHÓT</span>}
-              >
-                <div className="deadline-list">
-                  {deadlines.map((deadline) => (
-                    <Button
-                      className="deadline-row"
-                      key={deadline.title}
-                      onClick={() => setModal("deadline")}
-                    >
-                      <span className={`deadline-dot ${deadline.urgent ? "urgent" : ""}`} />
-                      <span className="deadline-info">
-                        <strong>{deadline.title}</strong>
-                        <small>{deadline.course}</small>
-                      </span>
-                      <span className="deadline-date">
-                        <strong>{deadline.date}</strong>
-                        <small>{deadline.days}</small>
-                      </span>
-                    </Button>
-                  ))}
-                </div>
-              </Card>
-            </div>
-          </>
-        )}
-        {page === "Planner" && (
-          <>
-            <div className="page-toolbar">
-              <div>
-                <Button
-                  className="secondary"
-                  onClick={() => setModal("availability")}
-                >
-                  <Clock3 aria-hidden="true" size={15} />
-                  Thời gian rảnh
-                </Button>
-              </div>
-            </div>
+          <form
+            className="sf-header-search"
+            onSubmit={(e) => {
+              e.preventDefault()
+              goto("Planner")
+            }}
+          >
+            <Search size={16} />
             <input
-              className="hidden"
-              ref={plannerUploadRef}
-              type="file"
-              accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg"
-              onChange={(e) => {
-                setPlannerSource(e.target.files?.[0]?.name || "")
-                e.target.value = ""
-              }}
+              aria-label="Tìm công việc"
+              placeholder="Tìm công việc hoặc môn học..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <Card className="planner-ai-panel" title="Lập lịch bằng AI">
-              <div className="planner-ai-content">
-                <p>
-                  Tải ảnh hoặc tệp lên, sau đó mô tả cách bạn muốn điều chỉnh
-                  lịch. Trợ lý sẽ tạo đề xuất để bạn xem và xác nhận.
-                </p>
-                <div className="planner-ai-actions">
-                  <Button
-                    className="secondary"
-                    onClick={() => plannerUploadRef.current?.click()}
-                  >
-                    <Upload aria-hidden="true" size={16} />
-                    {plannerSource ? "Đổi tệp" : "Tải ảnh hoặc tệp"}
+          </form>
+          <div className="sf-top-right">
+            <button
+              className="sf-top-icon"
+              onClick={() => {
+                goto("Planner")
+                openTask()
+              }}
+              aria-label="Thêm công việc"
+            >
+              <Plus size={18} />
+            </button>
+            <button
+              className="sf-top-icon"
+              onClick={() => setModal("notifications")}
+              aria-label="Xem hạn chót"
+            >
+              <Bell size={18} />
+              {deadlineSoon.length > 0 && <i />}
+            </button>
+            <span className="sf-avatar">SV</span>
+          </div>
+        </header>
+        <main id="main" className="sf-main">
+          <div className="sf-page-head">
+            <div>
+              <div className="sf-eyebrow">
+                STUDYFLOW AI <span>·</span>{" "}
+                {today().toLocaleDateString("vi-VN", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </div>
+              <h1 tabIndex={-1}>
+                {page === "Dashboard"
+                  ? "Chào bạn, hôm nay mình học gì?"
+                  : nav.find((n) => n.id === page)?.label}
+              </h1>
+              <p>
+                {
+                  ({
+                    Dashboard:
+                      "Một góc nhìn rõ ràng về công việc và bước học tiếp theo.",
+                    Planner:
+                      "Sắp xếp thời gian học khả thi, rồi tự tay xác nhận kế hoạch.",
+                    Study:
+                      "Không gian tập trung với gợi ý và tài liệu có nguồn rõ ràng.",
+                    Quiz: "Luyện tập với bộ câu hỏi mẫu do nhóm biên soạn.",
+                    Results: "Xem kết quả và chọn bước ôn tập tiếp theo.",
+                    Materials:
+                      "Quản lý tài liệu được phép sử dụng và ghi chú của bạn.",
+                  } as Record<Page, string>)[page]
+                }
+              </p>
+            </div>
+            {page === "Planner" && (
+              <Button variant="primary" onClick={() => openTask()}>
+                <Plus size={17} /> Thêm công việc
+              </Button>
+            )}
+          </div>
+          {page === "Dashboard" && (
+            <>
+              <div className="sf-welcome">
+                <div>
+                  <Badge tone="blue">HÀNH TRÌNH HỌC TẬP</Badge>
+                  <h2>
+                    Kế hoạch rõ ràng.
+                    <br />
+                    Mỗi ngày tiến một chút.
+                  </h2>
+                  <p>
+                    Bắt đầu từ công việc quan trọng nhất của bạn, rồi để
+                    StudyFlow giúp bạn giữ nhịp.
+                  </p>
+                  <Button variant="primary" onClick={() => goto("Planner")}>
+                    Xem kế hoạch <ArrowRight size={17} />
                   </Button>
-                  {plannerSource && <span>{plannerSource}</span>}
                 </div>
-                <textarea
-                  aria-label="Yêu cầu điều chỉnh lịch"
-                  value={plannerPrompt}
-                  onChange={(e) => setPlannerPrompt(e.target.value)}
-                  placeholder="Ví dụ: Ưu tiên Giải tích trước thứ Sáu và không xếp lịch sau 18:00..."
-                />
-                <Button className="primary" onClick={plan}>
-                  <Sparkles aria-hidden="true" size={16} />
-                  Tạo đề xuất lịch
-                </Button>
+                <div className="sf-welcome-art">
+                  <div className="sf-art-orbit">
+                    <Sparkles size={34} />
+                  </div>
+                  <span className="sf-art-card one">
+                    01 <b>Lên kế hoạch</b>
+                  </span>
+                  <span className="sf-art-card two">
+                    02 <b>Tập trung học</b>
+                  </span>
+                  <span className="sf-art-card three">
+                    03 <b>Ôn tập</b>
+                  </span>
+                </div>
               </div>
-            </Card>
-            {revision && (
-              <div className="info-banner">
-                <Sparkles aria-hidden="true" size={18} />
-                <div>
-                  <strong>Đề xuất ôn tập từ mục Ôn tập</strong>
-                  <p>
-                    Ôn lại đạo hàm riêng dựa trên bài kiểm tra minh họa. Nội
-                    dung này chưa được lên lịch.
-                  </p>
+              <div className="sf-stats">
+                <div className="sf-stat">
+                  <span className="sf-stat-icon blue">
+                    <ClipboardCheck size={21} />
+                  </span>
+                  <strong>{activeTasks.length}</strong>
+                  <p>Công việc còn lại</p>
                 </div>
-                <Button className="text-button" onClick={plan}>
-                  Xem đề xuất <ArrowRight aria-hidden="true" size={14} />
-                </Button>
+                <div className="sf-stat">
+                  <span className="sf-stat-icon amber">
+                    <CalendarDays size={21} />
+                  </span>
+                  <strong>{deadlineSoon.length}</strong>
+                  <p>Hạn trong 7 ngày</p>
+                </div>
+                <div className="sf-stat">
+                  <span className="sf-stat-icon violet">
+                    <Clock3 size={21} />
+                  </span>
+                  <strong>{confirmed.length}</strong>
+                  <p>Buổi học đã xác nhận</p>
+                </div>
+                <div className="sf-stat">
+                  <span className="sf-stat-icon green">
+                    <Check size={21} />
+                  </span>
+                  <strong>{doneCount}</strong>
+                  <p>Công việc hoàn thành</p>
+                </div>
               </div>
-            )}
-            {capacity < 30 && (
-              <div className="warning-banner">
-                <AlertTriangle aria-hidden="true" size={20} />
-                <div>
-                  <strong>Không đủ thời gian trống</strong>
-                  <p>
-                    Không thể sắp xếp buổi học 30 phút trong {capacity} phút
-                    thời gian rảnh. Chưa có thay đổi nào được thực hiện.
-                  </p>
-                </div>
-                <Button
-                  className="text-button"
-                  onClick={() => setModal("availability")}
+              <div className="sf-dashboard-showcase">
+                <Panel
+                  title="Môn học của bạn"
+                  action={
+                    <span className="sf-dashboard-subtle">
+                      Dữ liệu demo theo công việc
+                    </span>
+                  }
                 >
-                  Chỉnh sửa thời gian rảnh
-                </Button>
-              </div>
-            )}
-            <Card
-              className="dashboard-calendar"
-              title="Lịch"
-              action={
-                <div className="dashboard-calendar-controls">
-                  <span>
-                    {date.toLocaleDateString("vi-VN", {
+                  {courseNames.length ? (
+                    <div className="sf-course-grid">
+                      {courseNames.map((course, index) => {
+                        const count = tasks.filter(
+                          (t) => t.course === course && t.remainingMinutes > 0,
+                        ).length
+                        const Icon = [BookOpen, Target, CalendarDays][index % 3]
+                        return (
+                          <button
+                            key={course}
+                            className={`sf-course-card tone-${index % 3}`}
+                            onClick={() => {
+                              setSearchQuery(course)
+                              goto("Planner")
+                            }}
+                          >
+                            <span className="sf-course-card-icon">
+                              <Icon size={23} />
+                            </span>
+                            <strong>{course}</strong>
+                            <small>{count} công việc đang mở</small>
+                            <ArrowRight size={17} />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <Empty
+                      icon={BookOpen}
+                      title="Chưa có môn học"
+                      body="Thêm công việc đầu tiên để môn học xuất hiện ở đây."
+                    />
+                  )}
+                </Panel>
+                <Panel
+                  title="Lịch trong tuần"
+                  action={
+                    <div className="sf-mini-calendar-actions">
+                      <button
+                        onClick={() => setWeekOffset((w) => w - 1)}
+                        aria-label="Tuần trước"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        onClick={() => setWeekOffset((w) => w + 1)}
+                        aria-label="Tuần sau"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  }
+                >
+                  <div className="sf-mini-calendar-month">
+                    {weekDays[0].toLocaleDateString("vi-VN", {
                       month: "long",
                       year: "numeric",
                     })}
-                  </span>
-                  <Button
-                    className="secondary"
+                  </div>
+                  <div className="sf-mini-calendar-grid">
+                    {weekDays.map((day, index) => {
+                      const value = localDate(day)
+                      const hasStudy = confirmed.some((b) => b.date === value)
+                      const hasDeadline = tasks.some(
+                        (t) => t.deadline === value && t.remainingMinutes > 0,
+                      )
+                      return (
+                        <button
+                          key={value}
+                          className={`${
+                            value === localDate(today()) ? "today" : ""
+                          } ${
+                            value === selectedCalendarDate ? "selected" : ""
+                          }`}
+                          onClick={() => setSelectedCalendarDate(value)}
+                          aria-label={`${["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"][index]}, ${formatDate(value)}`}
+                          aria-pressed={value === selectedCalendarDate}
+                        >
+                          <small>
+                            {["T2", "T3", "T4", "T5", "T6", "T7", "CN"][index]}
+                          </small>
+                          <strong>{day.getDate()}</strong>
+                          <span>
+                            {hasStudy && <i className="study" />}
+                            {hasDeadline && <i className="deadline" />}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="sf-mini-calendar-detail">
+                    <strong>{formatDate(selectedCalendarDate)}</strong>
+                    <span>
+                      {
+                        confirmed.filter((b) => b.date === selectedCalendarDate)
+                          .length
+                      }{" "}
+                      buổi học đã xác nhận ·{" "}
+                      {
+                        tasks.filter(
+                          (t) =>
+                            t.deadline === selectedCalendarDate &&
+                            t.remainingMinutes > 0,
+                        ).length
+                      }{" "}
+                      hạn chót
+                    </span>
+                  </div>
+                </Panel>
+              </div>
+              <div className="sf-grid-2">
+                <Panel
+                  title="Lịch học đã xác nhận"
+                  action={
+                    <Button variant="ghost" onClick={() => goto("Planner")}>
+                      Mở lịch <ArrowRight size={16} />
+                    </Button>
+                  }
+                >
+                  {confirmed.length ? (
+                    <div className="sf-list">
+                      {confirmed
+                        .slice()
+                        .sort((a, b) =>
+                          `${a.date}-${a.startMinute}`.localeCompare(
+                            `${b.date}-${b.startMinute}`,
+                          ),
+                        )
+                        .slice(0, 4)
+                        .map((b) => (
+                          <button
+                            className="sf-list-row"
+                            key={b.id}
+                            onClick={() =>
+                              startStudy(tasks.find((t) => t.id === b.taskId))
+                            }
+                          >
+                            <span className="sf-date-box">
+                              {formatDate(b.date)}
+                            </span>
+                            <span>
+                              <strong>
+                                {tasks.find((t) => t.id === b.taskId)?.title ||
+                                  "Buổi học"}
+                              </strong>
+                              <small>
+                                {formatTime(b.startMinute)}–
+                                {formatTime(b.endMinute)} ·{" "}
+                                {tasks.find((t) => t.id === b.taskId)?.course}
+                              </small>
+                            </span>
+                            <Play size={17} />
+                          </button>
+                        ))}
+                    </div>
+                  ) : (
+                    <Empty
+                      icon={CalendarDays}
+                      title="Chưa có lịch học được xác nhận"
+                      body="Tạo đề xuất trong Planner và xác nhận trước khi buổi học xuất hiện ở đây."
+                      action={
+                        <Button
+                          variant="primary"
+                          onClick={() => goto("Planner")}
+                        >
+                          Mở Planner
+                        </Button>
+                      }
+                    />
+                  )}
+                </Panel>
+                <Panel
+                  title="Hạn chót sắp tới"
+                  action={
+                    <Badge tone="amber">{deadlineSoon.length} công việc</Badge>
+                  }
+                >
+                  {activeTasks.length ? (
+                    <div className="sf-list">
+                      {[...activeTasks]
+                        .sort((a, b) => a.deadline.localeCompare(b.deadline))
+                        .slice(0, 4)
+                        .map((t) => (
+                          <div className="sf-list-row" key={t.id}>
+                            <span className="sf-course-mark">
+                              {t.course.charAt(0)}
+                            </span>
+                            <span>
+                              <strong>{t.title}</strong>
+                              <small>
+                                {t.course} · còn {t.remainingMinutes} phút
+                              </small>
+                            </span>
+                            <Badge
+                              tone={
+                                daysUntil(t.deadline) <= 1 ? "red" : "amber"
+                              }
+                            >
+                              {dateLabel(t.deadline)}
+                            </Badge>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <Empty
+                      icon={Check}
+                      title="Đã xử lý hết công việc"
+                      body="Thêm công việc mới khi bạn có học phần hoặc hạn chót tiếp theo."
+                    />
+                  )}
+                </Panel>
+              </div>
+              <div className="sf-grid-2 sf-dashboard-lower">
+                <Panel
+                  title="Tiếp tục học"
+                  action={
+                    <Button
+                      variant="ghost"
+                      onClick={() => (study ? goto("Study") : startStudy())}
+                    >
+                      Mở buổi học <ArrowRight size={16} />
+                    </Button>
+                  }
+                >
+                  {study ? (
+                    <div className="sf-continue-card">
+                      <span className="sf-continue-icon">
+                        <BookOpen size={22} />
+                      </span>
+                      <span>
+                        <strong>{study.topic}</strong>
+                        <small>
+                          {study.course} ·{" "}
+                          {study.status === "completed"
+                            ? "Đã xác nhận kết quả"
+                            : study.status === "awaiting-confirmation"
+                              ? "Chờ xác nhận tóm tắt"
+                              : "Buổi học đang mở"}
+                        </small>
+                      </span>
+                      <Button variant="primary" onClick={() => goto("Study")}>
+                        Mở
+                      </Button>
+                    </div>
+                  ) : confirmed.length ? (
+                    <div className="sf-continue-card">
+                      <span className="sf-continue-icon">
+                        <BookOpen size={22} />
+                      </span>
+                      <span>
+                        <strong>
+                          {tasks.find((t) => t.id === confirmed[0].taskId)
+                            ?.title || "Buổi học đã xác nhận"}
+                        </strong>
+                        <small>
+                          Buổi học trong kế hoạch · sẵn sàng bắt đầu
+                        </small>
+                      </span>
+                      <Button
+                        variant="primary"
+                        onClick={() =>
+                          startStudy(
+                            tasks.find((t) => t.id === confirmed[0].taskId),
+                          )
+                        }
+                      >
+                        Học ngay
+                      </Button>
+                    </div>
+                  ) : (
+                    <Empty
+                      icon={BookOpen}
+                      title="Chưa có buổi học"
+                      body="Bạn có thể bắt đầu trực tiếp hoặc xác nhận một kế hoạch trong Planner."
+                      action={
+                        <Button onClick={() => startStudy()}>
+                          Bắt đầu học
+                        </Button>
+                      }
+                    />
+                  )}
+                </Panel>
+                <Panel
+                  title="Góc nhìn ôn tập"
+                  action={
+                    <Button variant="ghost" onClick={() => goto("Results")}>
+                      Xem kết quả <ArrowRight size={16} />
+                    </Button>
+                  }
+                >
+                  {result ? (
+                    <div className="sf-insight-card">
+                      <span className="sf-insight-score">
+                        {result.correctCount}/{result.total}
+                      </span>
+                      <span>
+                        <strong>Bài ôn tập mẫu gần nhất</strong>
+                        <small>
+                          {result.recommendations[0]?.topic} ·{" "}
+                          {result.recommendations[0]?.status ===
+                          "insufficient-data"
+                            ? "Bằng chứng còn ít"
+                            : "Có gợi ý ôn tập"}
+                        </small>
+                      </span>
+                      <Badge tone="violet">DEMO</Badge>
+                    </div>
+                  ) : (
+                    <Empty
+                      icon={ChartNoAxesCombined}
+                      title="Chưa có kết quả ôn tập"
+                      body="Làm bài mẫu để xem phản hồi dựa trên chính câu trả lời của bạn."
+                      action={
+                        <Button onClick={() => goto("Quiz")}>
+                          Mở bài ôn tập
+                        </Button>
+                      }
+                    />
+                  )}
+                </Panel>
+              </div>
+              <Panel title="Bắt đầu nhanh" className="sf-quick-panel">
+                <div className="sf-quick">
+                  <button
                     onClick={() => {
-                      setWeek(0)
-                      setSelectedDay(0)
+                      goto("Planner")
+                      openTask()
                     }}
                   >
-                    Hôm nay
-                  </Button>
-                  <Button
-                    className="icon-button"
-                    aria-label="Tuần trước"
-                    onClick={() => setWeek(week - 1)}
-                  >
-                    <ChevronLeft aria-hidden="true" size={18} />
-                  </Button>
-                  <Button
-                    className="icon-button"
-                    aria-label="Tuần sau"
-                    onClick={() => setWeek(week + 1)}
-                  >
-                    <ChevronRight aria-hidden="true" size={18} />
-                  </Button>
-                  <select
-                    aria-label="Chế độ xem lịch"
-                    value={period}
-                    onChange={(e) => setPeriod(e.target.value)}
-                  >
-                    <option value="Week">Tuần</option>
-                    <option value="Hôm nay">Ngày</option>
-                  </select>
+                    <span className="sf-quick-icon blue">
+                      <Plus size={21} />
+                    </span>
+                    <strong>Thêm công việc</strong>
+                    <small>Ghi lại hạn chót</small>
+                    <ArrowRight size={16} />
+                  </button>
+                  <button onClick={makePlan}>
+                    <span className="sf-quick-icon violet">
+                      <CalendarDays size={21} />
+                    </span>
+                    <strong>Tạo kế hoạch</strong>
+                    <small>Xem đề xuất lịch</small>
+                    <ArrowRight size={16} />
+                  </button>
+                  <button onClick={() => startStudy()}>
+                    <span className="sf-quick-icon green">
+                      <BookOpen size={21} />
+                    </span>
+                    <strong>Bắt đầu học</strong>
+                    <small>Buổi học trực tiếp</small>
+                    <ArrowRight size={16} />
+                  </button>
+                  <button onClick={() => goto("Quiz")}>
+                    <span className="sf-quick-icon amber">
+                      <Target size={21} />
+                    </span>
+                    <strong>Làm bài ôn tập</strong>
+                    <small>3 câu hỏi mẫu</small>
+                    <ArrowRight size={16} />
+                  </button>
                 </div>
-              }
-            >
-              <div
-                className="dashboard-calendar-scroll"
-                role="region"
-                aria-label="Lịch trong tuần, cuộn ngang để xem tất cả các ngày"
-                tabIndex={0}
-              >
-                <div
-                  className={`dashboard-schedule ${
-                    period === "Hôm nay" ? "day-view" : ""
-                  }`}
-                >
-                  <div className="schedule-header">
-                    <span className="schedule-timezone">GMT+1</span>
-                    {weekDays.map((d, i) =>
-                      period === "Hôm nay" && i !== selectedDay ? null : (
-                        <Button
-                          key={i}
-                          className={`schedule-day ${
-                            week === 0 && i === 0 ? "is-today" : ""
-                          }`}
-                          onClick={() => {
-                            setSelectedDay(i)
-                            setPeriod("Hôm nay")
-                          }}
-                        >
-                          <span>
-                            {["T2", "T3", "T4", "T5", "T6", "T7", "CN"][i]}
-                          </span>
-                          <strong>{d.getDate()}</strong>
-                        </Button>
-                      ),
-                    )}
-                  </div>
-                  {Array.from({ length: 10 }, (_, i) => i + 8).map((hour) => (
-                    <div className="schedule-row" key={hour}>
-                      <span className="schedule-hour">
-                        {String(hour).padStart(2, "0")}:00
-                      </span>
-                      {weekDays.map((_, day) => {
-                        if (period === "Hôm nay" && day !== selectedDay)
-                          return null
-                        const events =
-                          week === 0
-                            ? [
-                                {
-                                  day: 0,
-                                  hour: 9,
-                                  title: "Ôn tập ghi chú bài giảng",
-                                  course: "Giải tích",
-                                  time: "09:00–10:00",
-                                  kind: "study",
-                                },
-                                {
-                                  day: 0,
-                                  hour: 11,
-                                  title: "Bài tập luyện",
-                                  course: "Giải tích",
-                                  time: "11:00–12:00",
-                                  kind: "study",
-                                },
-                                {
-                                  day: 0,
-                                  hour: 14,
-                                  title: "Họp dự án nhóm",
-                                  course: "Kỹ thuật phần mềm",
-                                  time: "14:00–15:00",
-                                  kind: "meeting",
-                                },
-                                {
-                                  day: 0,
-                                  hour: 16,
-                                  title: "Chuẩn bị bài thực hành",
-                                  course: "Mạng máy tính",
-                                  time: "16:00–17:00",
-                                  kind: "study",
-                                },
-                                {
-                                  day: 1,
-                                  hour: 10,
-                                  title: "Làm bài tập",
-                                  course: "Giải tích",
-                                  time: "10:00–11:00",
-                                  kind: "study",
-                                },
-                                {
-                                  day: 2,
-                                  hour: 9,
-                                  title: "Chuẩn bị bài thực hành",
-                                  course: "Mạng máy tính",
-                                  time: "09:00–10:00",
-                                  kind: "study",
-                                },
-                                {
-                                  day: 3,
-                                  hour: 14,
-                                  title: "Họp nhóm",
-                                  course: "Kỹ thuật phần mềm",
-                                  time: "14:00–15:00",
-                                  kind: "meeting",
-                                },
-                                {
-                                  day: 4,
-                                  hour: 10,
-                                  title: "Báo cáo dự án due",
-                                  course: "Kỹ thuật phần mềm",
-                                  time: "Hạn lúc 11:00",
-                                  kind: "deadline",
-                                },
-                                {
-                                  day: 5,
-                                  hour: 11,
-                                  title: "Chuẩn bị cho kỳ thi",
-                                  course: "Giải tích",
-                                  time: "11:00–12:00",
-                                  kind: "study",
-                                },
-                              ]
-                            : []
-                        const event = events.find(
-                          (e) => e.day === day && e.hour === hour,
-                        )
-                        return (
-                          <div
-                            className={`schedule-cell ${
-                              week === 0 && day === 0 ? "today-column" : ""
-                            }`}
-                            key={day}
-                          >
-                            {event && (
-                              <Button
-                                aria-label={`${weekDays[day].toLocaleDateString("vi-VN", { weekday: "long", month: "long", day: "numeric" })}, ${event.title}, ${event.kind}, ${event.time}`}
-                                className={`schedule-event ${event.kind}`}
-                                onClick={() =>
-                                  event.kind === "deadline"
-                                    ? setModal("deadline")
-                                    : go("Study")
+              </Panel>
+            </>
+          )}
+          {page === "Planner" && (
+            <>
+              <div className="sf-flow-banner">
+                <div>
+                  <Sparkles size={20} />
+                  <span>
+                    <strong>UC-01 · Tạo và xác nhận kế hoạch tuần</strong>
+                    <small>
+                      Thuật toán xếp lịch theo hạn chót, mức ưu tiên và thời
+                      gian rảnh. Chỉ khi bạn xác nhận, lịch mới được lưu.
+                    </small>
+                  </span>
+                </div>
+                <Badge tone="violet">MÔ PHỎNG XÁC ĐỊNH</Badge>
+              </div>
+              {revisionTask && (
+                <div className="sf-alert blue">
+                  <Sparkles size={20} />
+                  <span>
+                    <strong>
+                      {assistantHandoff
+                        ? "Đề xuất từ StudyFlow Assistant"
+                        : "Đề xuất ôn tập từ kết quả bài làm"}
+                    </strong>
+                    <small>
+                      {revisionTask.title} · {revisionTask.remainingMinutes}{" "}
+                      phút
+                      {revisionTask.preferredDate
+                        ? ` · ${formatDate(revisionTask.preferredDate)}`
+                        : ""}
+                      . Chưa thêm vào công việc hoặc lịch đã xác nhận.
+                    </small>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setRevisionTask(null)
+                      setProposal(null)
+                      setAssistantHandoff(null)
+                    }}
+                  >
+                    Bỏ đề xuất
+                  </Button>
+                </div>
+              )}
+              <div className="sf-planner-actions">
+                <Button onClick={() => setModal("availability")}>
+                  <Clock3 size={17} /> Thời gian rảnh
+                </Button>
+                <Button onClick={() => setModal("commitment")}>
+                  <Plus size={17} /> Cam kết bận
+                </Button>
+                <Button variant="primary" onClick={makePlan}>
+                  <Sparkles size={17} /> Tạo đề xuất lịch
+                </Button>
+              </div>
+              <div className="sf-planner-layout">
+                <div className="sf-planner-side">
+                  <Panel
+                    title="Công việc học tập"
+                    action={
+                      <Badge tone="blue">
+                        {
+                          visibleTasks.filter((t) => t.remainingMinutes > 0)
+                            .length
+                        }{" "}
+                        cần làm
+                      </Badge>
+                    }
+                  >
+                    {visibleTasks.length ? (
+                      <div className="sf-task-list">
+                        {visibleTasks.map((t) => (
+                          <div className="sf-task" key={t.id}>
+                            <div className="sf-task-top">
+                              <Badge
+                                tone={
+                                  t.priority === "Cao"
+                                    ? "red"
+                                    : t.priority === "Trung bình"
+                                      ? "amber"
+                                      : "neutral"
                                 }
                               >
-                                <strong>{event.title}</strong>
-                                <span>{event.course}</span>
-                                <small>{event.time}</small>
-                              </Button>
-                            )}
+                                {t.priority}
+                              </Badge>
+                              <button
+                                onClick={() => openTask(t)}
+                                aria-label={`Sửa ${t.title}`}
+                              >
+                                <Pencil size={16} />
+                              </button>
+                            </div>
+                            <strong>{t.title}</strong>
+                            <small>
+                              {t.course} · {formatDate(t.deadline)} · còn{" "}
+                              {t.remainingMinutes}/{t.estimatedMinutes} phút
+                            </small>
+                            <div className="sf-progress">
+                              <i
+                                style={{
+                                  width: `${100 * (1 - t.remainingMinutes / t.estimatedMinutes)}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Empty
+                        icon={ClipboardCheck}
+                        title={
+                          searchQuery
+                            ? "Không tìm thấy công việc"
+                            : "Chưa có công việc"
+                        }
+                        body={
+                          searchQuery
+                            ? "Thử tên công việc hoặc môn học khác trong ô tìm kiếm."
+                            : "Thêm công việc với hạn chót và thời lượng để tạo kế hoạch."
+                        }
+                        action={
+                          <Button onClick={() => openTask()}>
+                            Thêm công việc
+                          </Button>
+                        }
+                      />
+                    )}
+                  </Panel>
+                  <Panel
+                    title="Thời gian có thể học"
+                    action={
+                      <Button
+                        variant="ghost"
+                        onClick={() => setModal("availability")}
+                      >
+                        Chỉnh sửa
+                      </Button>
+                    }
+                  >
+                    <div className="sf-slot-list">
+                      {slots.map((s) => (
+                        <div key={s.id}>
+                          <span>
+                            {
+                              [
+                                "Thứ 2",
+                                "Thứ 3",
+                                "Thứ 4",
+                                "Thứ 5",
+                                "Thứ 6",
+                                "Thứ 7",
+                                "Chủ nhật",
+                              ][s.day]
+                            }
+                          </span>
+                          <strong>
+                            {formatTime(s.startMinute)}–
+                            {formatTime(s.endMinute)}
+                          </strong>
+                        </div>
+                      ))}
+                      {!slots.length && <p>Chưa khai báo thời gian rảnh.</p>}
+                    </div>
+                    {commitments.length > 0 && (
+                      <p className="sf-muted sf-spaced">
+                        {commitments.length} cam kết bận đã được loại khỏi đề
+                        xuất.
+                      </p>
+                    )}
+                  </Panel>
+                </div>
+                <div className="sf-planner-main">
+                  <Panel
+                    title={`Lịch tuần ${formatDate(localDate(weekDays[0]))} – ${formatDate(localDate(weekDays[6]))}`}
+                    action={
+                      <div className="sf-week-controls">
+                        <button
+                          onClick={() => setWeekOffset((w) => w - 1)}
+                          aria-label="Tuần trước"
+                        >
+                          <ChevronLeft size={19} />
+                        </button>
+                        <button onClick={() => setWeekOffset(0)}>
+                          Tuần này
+                        </button>
+                        <button
+                          onClick={() => setWeekOffset((w) => w + 1)}
+                          aria-label="Tuần sau"
+                        >
+                          <ChevronRight size={19} />
+                        </button>
+                      </div>
+                    }
+                  >
+                    <div className="sf-calendar">
+                      {weekDays.map((d, i) => {
+                        const date = localDate(d)
+                        const dayBlocks = [
+                          ...confirmed,
+                          ...(proposal?.blocks || []),
+                        ]
+                          .filter((b) => b.date === date)
+                          .sort((a, b) => a.startMinute - b.startMinute)
+                        return (
+                          <div
+                            className={`sf-calendar-day ${
+                              date === localDate(today()) ? "today" : ""
+                            }`}
+                            key={date}
+                          >
+                            <div className="sf-calendar-date">
+                              <small>
+                                {["T2", "T3", "T4", "T5", "T6", "T7", "CN"][i]}
+                              </small>
+                              <strong>{d.getDate()}</strong>
+                            </div>
+                            <div className="sf-calendar-events">
+                              {dayBlocks.map((b) => (
+                                <button
+                                  key={b.id}
+                                  className={`sf-calendar-event ${b.status}`}
+                                  onClick={() =>
+                                    b.status === "confirmed" &&
+                                    startStudy(
+                                      tasks.find((t) => t.id === b.taskId),
+                                    )
+                                  }
+                                >
+                                  <span>
+                                    {formatTime(b.startMinute)}–
+                                    {formatTime(b.endMinute)}
+                                  </span>
+                                  <strong>
+                                    {[...tasks, revisionTask].find(
+                                      (t) => t?.id === b.taskId,
+                                    )?.title || "Buổi học"}
+                                  </strong>
+                                  <small>
+                                    {b.status === "confirmed"
+                                      ? "Đã xác nhận · Bắt đầu học"
+                                      : "Đề xuất"}
+                                  </small>
+                                </button>
+                              ))}
+                              {commitments
+                                .filter((c) => c.date === date)
+                                .map((c) => (
+                                  <div
+                                    className="sf-calendar-event busy"
+                                    key={c.id}
+                                  >
+                                    <span>
+                                      {formatTime(c.startMinute)}–
+                                      {formatTime(c.endMinute)}
+                                    </span>
+                                    <strong>{c.title}</strong>
+                                    <small>Cam kết bận</small>
+                                  </div>
+                                ))}
+                              {!dayBlocks.length &&
+                                !commitments.some((c) => c.date === date) && (
+                                  <span className="sf-calendar-empty">—</span>
+                                )}
+                            </div>
                           </div>
                         )
                       })}
                     </div>
-                  ))}
+                    <div className="sf-calendar-legend">
+                      <span>
+                        <i className="confirmed" /> Đã xác nhận
+                      </span>
+                      <span>
+                        <i className="proposed" /> Đề xuất
+                      </span>
+                      <span>
+                        <i className="busy" /> Cam kết bận
+                      </span>
+                    </div>
+                  </Panel>
+                  {proposal && (
+                    <Panel
+                      title="Xem lại đề xuất"
+                      action={<Badge tone="violet">CHƯA XÁC NHẬN</Badge>}
+                    >
+                      <p className="sf-muted">
+                        {proposal.blocks.length} buổi học được đề xuất. Lịch
+                        hiện tại sẽ chỉ thay đổi khi bạn chọn xác nhận.
+                      </p>
+                      {proposal.blocks.length > 0 && (
+                        <div className="sf-proposal-list">
+                          {proposal.blocks.map((b) => (
+                            <div key={b.id}>
+                              <strong>
+                                {
+                                  [...tasks, revisionTask].find(
+                                    (t) => t?.id === b.taskId,
+                                  )?.title
+                                }
+                              </strong>
+                              <span>
+                                {formatDate(b.date)} ·{" "}
+                                {formatTime(b.startMinute)}–
+                                {formatTime(b.endMinute)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {proposal.unscheduled.length > 0 && (
+                        <div className="sf-alert amber">
+                          <AlertTriangle size={20} />
+                          <span>
+                            <strong>Chưa xếp được toàn bộ</strong>
+                            {proposal.unscheduled.map((u) => (
+                              <small key={u.taskId}>
+                                {
+                                  [...tasks, revisionTask].find(
+                                    (t) => t?.id === u.taskId,
+                                  )?.title
+                                }
+                                : còn {u.minutes} phút. {u.reason}
+                              </small>
+                            ))}
+                          </span>
+                        </div>
+                      )}
+                      <div className="sf-actions">
+                        <Button
+                          onClick={() => {
+                            setProposal(null)
+                            setRevisionTask(null)
+                            setAssistantHandoff(null)
+                            notify(
+                              "Đã từ chối đề xuất. Lịch xác nhận giữ nguyên.",
+                            )
+                          }}
+                        >
+                          Từ chối
+                        </Button>
+                        <Button
+                          variant="primary"
+                          disabled={!proposal.blocks.length}
+                          onClick={approvePlan}
+                        >
+                          <Check size={17} /> Xác nhận kế hoạch
+                        </Button>
+                      </div>
+                    </Panel>
+                  )}
                 </div>
               </div>
-              <div className="schedule-legend">
+              <div className="sf-material-hint">
+                <FileText size={18} />
                 <span>
-                  <i className="legend-study" />
-                  Buổi học
+                  Đầu vào PDF: bản demo chỉ chọn tên tệp ở Thư viện, chưa trích
+                  xuất nội dung. Bạn có thể nhập công việc thủ công ở đây.
                 </span>
-                <span>
-                  <i className="legend-meeting" />
-                  Cuộc họp
-                </span>
-                <span>
-                  <i className="legend-deadline" />
-                  Hạn chót
-                </span>
+                <Button variant="ghost" onClick={() => goto("Materials")}>
+                  Mở Thư viện
+                </Button>
               </div>
-            </Card>
-          </>
-        )}
-        {page === "Study" && (
-          <>
-            <input
-              className="hidden"
-              ref={uploadRef}
-              type="file"
-              accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg"
-              multiple
-              onChange={(e) => {
-                setFiles([
-                  ...files,
-                  ...Array.from(e.target.files || []).map((file) => ({
-                    name: file.name,
-                    course: "Chưa phân loại",
-                    status: "Đã thêm · chờ AI đọc nội dung",
-                  })),
-                ])
-                e.target.value = ""
-              }}
-            />
-            <Card className="study-tools" title="Học cùng tài liệu">
-              <div className="study-tools-content">
-                <div className="study-material-summary">
-                  <FileText aria-hidden="true" size={20} />
-                  <div>
-                    <strong>
-                      {files.length
-                        ? `${files.length} tài liệu đã tải lên`
-                        : "Chưa có tài liệu"}
-                    </strong>
-                    <p>
-                      Tải tài liệu lên để tạo bài tập và hỏi đáp dựa trên nội
-                      dung của bạn.
-                    </p>
-                  </div>
-                  <Button
-                    className="secondary"
-                    onClick={() => uploadRef.current?.click()}
-                  >
-                    <Upload aria-hidden="true" size={16} />
-                    Tải tài liệu
-                  </Button>
-                </div>
-                <div className="study-feature-grid">
-                  <Button
-                    className="study-feature"
-                    onClick={() => {
-                      setStudyMode("exercise")
-                      setStudyQuestion(
-                        "Nếu f(x, y) = x²y, đạo hàm riêng theo x là gì?",
-                      )
-                      setStudyAnswer("")
-                      setStudyResponse("")
-                    }}
-                  >
-                    <Sparkles aria-hidden="true" size={18} />
-                    <span>
-                      <strong>AI tạo bài tập</strong>
-                      <small>Tạo câu hỏi luyện tập từ tài liệu</small>
+            </>
+          )}
+          {page === "Study" && (
+            <>
+              {!study ? (
+                <Panel>
+                  <Empty
+                    icon={BookOpen}
+                    title="Sẵn sàng cho buổi học tập trung?"
+                    body="Bắt đầu trực tiếp, hoặc chọn một buổi đã xác nhận trong Dashboard hay Planner."
+                    action={
+                      <Button variant="primary" onClick={() => startStudy()}>
+                        <Play size={17} /> Bắt đầu học
+                      </Button>
+                    }
+                  />
+                </Panel>
+              ) : (
+                <>
+                  <div className="sf-session-bar">
+                    <span className="sf-session-icon">
+                      <BookOpen size={22} />
                     </span>
-                    <ArrowRight aria-hidden="true" size={15} />
-                  </Button>
-                  <form
-                    className="study-question"
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      if (!studyQuestion.trim()) return
-                      setStudyMode("answer")
-                      setStudyResponse(
-                        "Theo nội dung minh họa, hãy giữ y không đổi và lấy đạo hàm x². Kết quả là 2xy.",
-                      )
-                    }}
-                  >
-                    <label htmlFor="study-question-input">
-                      Hỏi về tài liệu
-                    </label>
+                    <span>
+                      <strong>{study.topic}</strong>
+                      <small>
+                        {study.course} ·{" "}
+                        {study.origin === "planner"
+                          ? "Từ kế hoạch đã xác nhận"
+                          : study.origin === "assistant"
+                            ? "Từ StudyFlow Assistant"
+                            : "Bắt đầu trực tiếp"}
+                      </small>
+                    </span>
+                    <Badge
+                      tone={
+                        study.status === "completed"
+                          ? "green"
+                          : study.status === "awaiting-confirmation"
+                            ? "amber"
+                            : "blue"
+                      }
+                    >
+                      {study.status === "completed"
+                        ? "ĐÃ XÁC NHẬN"
+                        : study.status === "awaiting-confirmation"
+                          ? "CHỜ XÁC NHẬN"
+                          : "ĐANG HỌC"}
+                    </Badge>
+                    <span className="sf-timer">
+                      {String(Math.floor(study.elapsedSeconds / 60)).padStart(
+                        2,
+                        "0",
+                      )}
+                      :{String(study.elapsedSeconds % 60).padStart(2, "0")}
+                    </span>
+                    {study.status === "active" && (
+                      <>
+                        <Button onClick={() => setRunning((r) => !r)}>
+                          {running ? <Pause size={16} /> : <Play size={16} />}{" "}
+                          {running ? "Tạm dừng" : "Tiếp tục"}
+                        </Button>
+                        <Button
+                          variant="primary"
+                          onClick={() => {
+                            setRunning(false)
+                            setStudy((s) =>
+                              s ? { ...s, status: "awaiting-confirmation" } : s,
+                            )
+                            setModal("reflection")
+                          }}
+                        >
+                          Kết thúc
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <div className="sf-study-grid">
                     <div>
-                      <input
-                        id="study-question-input"
-                        value={studyQuestion}
-                        onChange={(e) => setStudyQuestion(e.target.value)}
-                        placeholder="Bạn còn thắc mắc điều gì?"
-                      />
-                      <Button
-                        className="primary"
-                        type="submit"
-                        aria-label="Gửi câu hỏi"
+                      <Panel title="Mục tiêu buổi học">
+                        <p>{study.goal}</p>
+                        <div className="sf-source-label">
+                          <FileText size={17} />{" "}
+                          {study.sourceId
+                            ? "Nguồn minh họa do nhóm biên soạn"
+                            : "Chưa có nguồn học có thể truy cập"}
+                        </div>
+                      </Panel>
+                      <Panel
+                        title="Tài liệu & dẫn nguồn"
+                        className="sf-spaced-panel"
                       >
-                        <ArrowRight aria-hidden="true" size={16} />
+                        {study.sourceId ? (
+                          <>
+                            <div className="sf-source-title">
+                              <Badge tone="violet">ĐOẠN VÍ DỤ · DEMO</Badge>
+                              <strong>{passage.title}</strong>
+                            </div>
+                            <blockquote id="source-passage">
+                              {passage.text}
+                            </blockquote>
+                            <p className="sf-muted">
+                              Tham chiếu: đoạn hiển thị ở trên. Không phải trích
+                              dẫn từ PDF bài giảng.
+                            </p>
+                          </>
+                        ) : (
+                          <Empty
+                            icon={FileText}
+                            title="Nguồn chưa sẵn có"
+                            body="Hãy thêm ghi chú được phép sử dụng trong Thư viện. Trợ lý không thể trích dẫn nội dung chưa được cung cấp."
+                            action={
+                              <Button onClick={() => goto("Materials")}>
+                                Mở Thư viện
+                              </Button>
+                            }
+                          />
+                        )}
+                      </Panel>
+                      <Panel
+                        title="Ghi chú học tập"
+                        className="sf-spaced-panel"
+                      >
+                        <textarea
+                          className="sf-textarea"
+                          placeholder="Ghi lại cách hiểu của bạn... (chỉ lưu trong buổi học hiện tại)"
+                          aria-label="Ghi chú học tập"
+                        />
+                      </Panel>
+                    </div>
+                    <Panel
+                      title="Learning Copilot"
+                      action={<Badge tone="violet">KỊCH BẢN DEMO</Badge>}
+                      className="sf-copilot"
+                    >
+                      <div className="sf-chat">
+                        <div className="sf-chat-bubble">
+                          <Sparkles size={17} />
+                          <p>
+                            {study.sourceId
+                              ? "Mình có thể gợi ý từng bước cho ví dụ đạo hàm riêng đang hiển thị. Nội dung này là kịch bản minh họa, không phải phản hồi AI trực tiếp."
+                              : `Chưa có nguồn học cho ${study.topic}. Hãy mở Thư viện để thêm ghi chú được phép sử dụng; hiện mình chưa thể giải thích hoặc trích dẫn chủ đề này.`}
+                          </p>
+                        </div>
+                        {messages.map((m, i) => (
+                          <div className="sf-chat-bubble" key={i}>
+                            <Sparkles size={17} />
+                            <p>
+                              {m}{" "}
+                              {study.sourceId && (
+                                <a href="#source-passage">Xem đoạn nguồn</a>
+                              )}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="sf-hints">
+                        <Button
+                          onClick={() => {
+                            const next = Math.min(hintLevel + 1, 3)
+                            setHintLevel(next)
+                            setMessages((ms) => [
+                              ...ms,
+                              study.sourceId
+                                ? [
+                                    "",
+                                    "Gợi ý 1: Chọn biến cần lấy đạo hàm; giữ biến kia cố định.",
+                                    "Gợi ý 2: Với ∂/∂x, xem y như một hệ số hằng.",
+                                    "Gợi ý 3: ∂(x²y)/∂x = 2xy và ∂(3y)/∂x = 0.",
+                                  ][next]
+                                : "Chưa có đoạn nguồn cho chủ đề này. Hãy thêm ghi chú thủ công trước khi yêu cầu giải thích.",
+                            ])
+                          }}
+                          disabled={!study.sourceId || hintLevel >= 3}
+                        >
+                          <Sparkles size={16} /> Gợi ý {hintLevel}/3
+                        </Button>
+                        <Button
+                          onClick={() =>
+                            setMessages((ms) => [
+                              ...ms,
+                              study.sourceId
+                                ? "Giải thích mẫu: Đạo hàm riêng xét sự thay đổi của hàm theo một biến, trong khi các biến khác được giữ cố định."
+                                : "Không thể giải thích theo nguồn khi chưa có tài liệu được cung cấp.",
+                            ])
+                          }
+                        >
+                          Giải thích thêm
+                        </Button>
+                      </div>
+                      <form
+                        className="sf-chat-form"
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          if (!questionText.trim()) return
+                          setMessages((ms) => [
+                            ...ms,
+                            study.sourceId
+                              ? `Câu hỏi của bạn: “${questionText.trim()}”. Kịch bản demo gợi ý xem lại định nghĩa và ví dụ trong đoạn nguồn; câu trả lời tùy ý cần dịch vụ AI thật.`
+                              : "Chưa có nguồn để trả lời câu hỏi này.",
+                          ])
+                          setQuestionText("")
+                        }}
+                      >
+                        <input
+                          value={questionText}
+                          onChange={(e) => setQuestionText(e.target.value)}
+                          placeholder="Hỏi về bài học..."
+                          aria-label="Hỏi trợ lý học tập"
+                        />
+                        <Button
+                          variant="primary"
+                          type="submit"
+                          title="Gửi câu hỏi"
+                        >
+                          <Send size={17} />
+                        </Button>
+                      </form>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setQuizCourse(study.course)
+                          setQuizTopic(study.topic)
+                          setQuizIndex(0)
+                          setAnswers({})
+                          goto("Quiz")
+                        }}
+                      >
+                        Làm bài ôn tập tùy chọn <ArrowRight size={17} />
+                      </Button>
+                    </Panel>
+                  </div>
+                  {study.status === "awaiting-confirmation" && (
+                    <div className="sf-alert amber">
+                      <AlertTriangle size={20} />
+                      <span>
+                        <strong>Buổi học đang chờ bạn xác nhận kết quả.</strong>
+                        <small>
+                          Hoạt động học không được xem là bằng chứng thành thạo.
+                        </small>
+                      </span>
+                      <Button onClick={() => setModal("reflection")}>
+                        Xem tóm tắt
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setStudy((s) => (s ? { ...s, status: "active" } : s))
+                          setRunning(true)
+                        }}
+                      >
+                        Tiếp tục học
                       </Button>
                     </div>
-                  </form>
-                </div>
-                {studyMode === "exercise" && (
-                  <div className="study-exercise">
-                    <span className="eyebrow">BÀI TẬP MINH HỌA</span>
-                    <h3>{studyQuestion}</h3>
-                    <div className="exercise-options">
-                      {["2xy", "x²", "2x + y"].map((option) => (
-                        <label key={option}>
-                          <input
-                            type="radio"
-                            name="study-answer"
-                            value={option}
-                            checked={studyAnswer === option}
-                            onChange={() => setStudyAnswer(option)}
-                          />
-                          {option}
-                        </label>
-                      ))}
-                    </div>
-                    <Button
-                      className="primary"
-                      disabled={!studyAnswer}
-                      onClick={() => {
-                        setStudyMode("answer")
-                        setStudyResponse(
-                          studyAnswer === "2xy"
-                            ? "Chính xác. Giữ y không đổi, đạo hàm theo x là 2xy."
-                            : "Hãy xem lại cách giữ y không đổi. Đáp án đúng là 2xy.",
-                        )
-                      }}
-                    >
-                      Kiểm tra đáp án
-                    </Button>
-                  </div>
-                )}
-                {studyMode === "answer" && studyResponse && (
-                  <div className="info-banner study-response">
-                    <BookOpen aria-hidden="true" size={18} />
-                    <p>{studyResponse}</p>
-                  </div>
-                )}
-              </div>
-            </Card>
-            <div className="study-session-bar">
-              <span className="course-icon">
-                <BookOpen aria-hidden="true" size={21} />
-              </span>
-              <div>
-                <strong>Đạo hàm riêng</strong>
-                <p>Giải tích · Chương 3 · Dự kiến 60 phút</p>
-              </div>
-              <span
-                className="timer"
-                role="timer"
-                aria-label="Thời gian đã trôi qua của buổi học"
-              >
-                {String(Math.floor(seconds / 60)).padStart(2, "0")}:
-                {String(seconds % 60).padStart(2, "0")}
-              </span>
-              <Button
-                className="secondary"
-                onClick={() => setRunning(!running)}
-              >
-                {running ? (
-                  <Pause aria-hidden="true" size={15} />
-                ) : (
-                  <Play aria-hidden="true" size={15} />
-                )}{" "}
-                {running ? "Pause" : "Tiếp tục"}
-              </Button>
-              <Button
-                className="primary"
-                onClick={() => {
-                  setRunning(false)
-                  setModal("reflection")
-                }}
-              >
-                Kết thúc buổi học <ArrowRight aria-hidden="true" size={15} />
-              </Button>
-            </div>
-            {sessionSaved && (
-              <div className="info-banner">
-                <Check aria-hidden="true" size={18} />
-                <div>
-                  <strong>Đã xác nhận kết quả buổi học</strong>
-                  <p>
-                    Phản hồi của bạn is recorded for this prototype session.
-                    Thời gian học không chứng minh mức độ thành thạo.
-                  </p>
-                </div>
-                <Button className="text-button" onClick={() => go("Study")}>
-                  Làm bài luyện tập <ArrowRight aria-hidden="true" size={14} />
-                </Button>
-              </div>
-            )}
-            <div className="study-grid">
-              <Card
-                title="Tài liệu học tập"
-                action={
-                  <span className="quiet-badge">GHI CHÚ MINH HỌA · §3.1</span>
-                }
-              >
-                <article className="document">
-                  <span className="eyebrow">GIẢI TÍCH / CHƯƠNG 3</span>
-                  <h2>Tìm hiểu về đạo hàm riêng</h2>
-                  <p>
-                    When a function depends on more than one variable, a partial
-                    derivative measures how it changes with respect to one
-                    variable while keeping the others fixed.
-                  </p>
-                  <h3>Ví dụ minh họa</h3>
-                  <div
-                    className="formula"
-                    role="math"
-                    aria-label="f of x y equals x squared times y plus three y"
-                  >
-                    f(x, y) = x²y + 3y
-                  </div>
-                  <p>
-                    To differentiate with respect to x, hold y constant. The
-                    derivative of x²y is 2xy, and the derivative of 3y with
-                    respect to x is zero.
-                  </p>
-                  <div
-                    className="formula result"
-                    role="math"
-                    aria-label="Đạo hàm riêng của f theo x bằng hai x y"
-                  >
-                    ∂f / ∂x = 2xy
-                  </div>
-                  <div className="document-callout">
-                    <BookOpen aria-hidden="true" size={18} />
-                    <p>
-                      Đây là ví dụ do tác giả biên soạn, không phải tài liệu môn
-                      học được trích xuất hoặc xác minh.
-                    </p>
-                  </div>
-                  <h3>Tự thử sức</h3>
-                  <p>
-                    Điều gì thay đổi nếu bạn lấy đạo hàm cùng hàm số theo biến
-                    y?
-                  </p>
-                </article>
-              </Card>
-              <div>
-                <Card title="Ghi chú buổi học">
-                  <textarea
-                    className="session-notes"
-                    aria-label="Ghi chú buổi học"
-                    placeholder="Ghi lại câu hỏi, điều bạn hiểu được hoặc nội dung cần xem lại..."
-                    value={reflection}
-                    onChange={(e) => setReflection(e.target.value)}
-                  />
-                  <div className="planner-note">
-                    Ghi chú chỉ được giữ trong thời gian mở bản thử nghiệm này.
-                  </div>
-                </Card>
-              </div>
-            </div>
-          </>
-        )}
-        {page === "Review" && (
-          <>
-            <div
-              className="tabs standalone"
-              role="group"
-              aria-label="Chế độ xem ôn tập"
-            >
-              {[
-                { value: "Practice", label: "Luyện tập" },
-                { value: "Progress", label: "Tiến độ" },
-              ].map((tab) => (
-                <Button
-                  key={tab.value}
-                  aria-pressed={reviewTab === tab.value}
-                  className={reviewTab === tab.value ? "active" : ""}
-                  onClick={() => setReviewTab(tab.value)}
-                >
-                  {tab.label}
-                </Button>
-              ))}
-            </div>
-            {reviewTab === "Progress" ? (
-              <Card className="review-card">
-                <div className="empty-state">
-                  <ChartNoAxesCombined aria-hidden="true" size={38} />
-                  <h2>Hiểu bài bắt đầu từ bằng chứng.</h2>
-                  <p>
-                    Chưa đủ dữ liệu. Chưa có bài đánh giá nào được xác minh
-                    trong bản minh họa này. Một buổi học hoàn thành không phải
-                    là thước đo mức độ thành thạo.
-                  </p>
-                  <Button
-                    className="secondary"
-                    onClick={() => setReviewTab("Practice")}
-                  >
-                    Xem phần luyện tập{" "}
-                    <ArrowRight aria-hidden="true" size={15} />
-                  </Button>
-                </div>
-              </Card>
-            ) : (
-              <Card
-                className="review-card"
-                title={
-                  quizState === "results"
-                    ? "Kết quả luyện tập"
-                    : quizState === "question"
-                      ? "Câu hỏi 1 trên 1"
-                      : "Một bài kiểm tra nhanh mức độ hiểu bài"
-                }
-                action={<span className="quiet-badge">LUYỆN TẬP MINH HỌA</span>}
-              >
-                {quizState === "setup" ? (
-                  <div className="review-setup">
-                    <p>
-                      Chọn một chủ đề và làm một câu hỏi mẫu. Bài đánh giá có
-                      xác minh nguồn cần tài liệu học tập được cấp phép.
-                    </p>
-                    <div className="form-grid">
-                      <label>
-                        Môn học
-                        <select
-                          value={course}
-                          onChange={(e) => setCourse(e.target.value)}
-                        >
-                          <option>Giải tích</option>
-                          <option>Mạng máy tính</option>
-                        </select>
-                      </label>
-                      <label>
-                        Chủ đề
-                        <select>
-                          <option>
-                            {course === "Giải tích"
-                              ? "Đạo hàm riêng"
-                              : "Giao thức mạng"}
-                          </option>
-                        </select>
-                      </label>
-                    </div>
-                    <label>
-                      Nguồn học tập
-                      <select>
-                        <option>Không có nguồn đã xác minh</option>
-                      </select>
-                    </label>
-                    <div className="warning-banner">
-                      <AlertTriangle aria-hidden="true" size={18} />
-                      <div>
-                        <strong>Không đủ bằng chứng từ nguồn</strong>
-                        <p>
-                          Không thể tạo hoặc chấm bài kiểm tra có xác minh
-                          nguồn. Bạn bạn có thể xem ví dụ Giải tích do tác giả
-                          biên soạn; kết quả này không tạo ra điểm thành thạo đã
-                          xác minh.
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      className="primary"
-                      onClick={() => {
-                        setCourse("Giải tích")
-                        setAnswer("")
-                        setQuizState("question")
-                      }}
-                    >
-                      Bắt đầu bài kiểm tra mẫu{" "}
-                      <ArrowRight aria-hidden="true" size={16} />
-                    </Button>
-                  </div>
-                ) : quizState === "question" ? (
-                  <div className="quiz-content">
-                    <span className="eyebrow">GIẢI TÍCH · ĐẠO HÀM RIÊNG</span>
-                    <h3>Nếu f(x, y) = x²y, ∂f/∂x bằng bao nhiêu?</h3>
-                    <p>Giữ y không đổi khi lấy đạo hàm theo x.</p>
-                    <fieldset className="quiz-choices">
-                      <legend>Chọn một đáp án</legend>
-                      {["2xy", "x²", "2x + y"].map((a, i) => (
-                        <label
-                          className={`quiz-answer ${
-                            answer === a ? "chosen" : ""
-                          }`}
-                          key={a}
-                        >
-                          <input
-                            type="radio"
-                            name="quiz-answer"
-                            value={a}
-                            checked={answer === a}
-                            onChange={() => setAnswer(a)}
-                          />
-                          <span>{["A", "B", "C"][i]}</span>
-                          {a}
-                        </label>
-                      ))}
-                    </fieldset>
-                    <div className="source-disclaimer">
-                      Nguồn: ghi chú minh họa do tác giả biên soạn, §3.1. Chưa
-                      được xác minh bên ngoài.
-                    </div>
-                    <Button
-                      className="primary"
-                      disabled={!answer}
-                      onClick={() => setModal("submit")}
-                    >
-                      Gửi đáp án <ArrowRight aria-hidden="true" size={15} />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="quiz-content">
-                    <div className="result-heading">
-                      <span className="result-icon">
-                        {answer === "2xy" ? (
-                          <Check aria-hidden="true" size={25} />
-                        ) : (
-                          <BookOpen aria-hidden="true" size={25} />
-                        )}
-                      </span>
-                      <div>
-                        <h3>
-                          {answer === "2xy"
-                            ? "Một bước tiến tốt."
-                            : "Một nội dung hữu ích để xem lại."}
-                        </h3>
-                        <p>
-                          {answer === "2xy" ? "1 trên 1" : "0 trên 1"} câu trả
-                          lời mẫu đúng · Không phải bài đánh giá đã xác minh
-                        </p>
-                      </div>
-                    </div>
-                    <div className="answer-explanation">
-                      <strong>Đáp án đúng: 2xy</strong>
-                      <p>
-                        Giữ y không đổi, đạo hàm của x² là 2x, nên ∂(x²y)/∂x =
-                        2xy.
-                      </p>
+                  )}
+                  {study.status === "completed" && (
+                    <div className="sf-alert green">
+                      <Check size={20} />
                       <span>
-                        Ghi chú minh họa do tác giả biên soạn · §3.1 · Cỡ mẫu: 1
-                        câu hỏi
+                        <strong>Bạn đã xác nhận kết quả buổi học.</strong>
+                        <small>
+                          Tiếp tục luyện tập nếu muốn kiểm tra mức độ hiểu bài.
+                        </small>
                       </span>
+                      <Button onClick={() => goto("Quiz")}>
+                        Làm bài ôn tập
+                      </Button>
                     </div>
-                    {answer !== "2xy" && (
-                      <div className="revision-card">
-                        <Sparkles aria-hidden="true" size={19} />
-                        <div>
-                          <strong>Đề xuất ôn tập: Đạo hàm riêng</strong>
-                          <p>
-                            Dựa trên một câu trả lời mẫu chưa đúng, hãy ôn lại
-                            cách giữ biến còn lại không đổi. Đây là gợi ý luyện
-                            tập, không phải điểm yếu đã xác minh hay thay đổi
-                            lịch học.
-                          </p>
-                          <Button
-                            className="text-button"
-                            onClick={() => {
-                              setRevision(true)
-                              go("Planner")
-                              notify(
-                                "Đã gửi gợi ý sang Lập kế hoạch. Lịch của bạn không thay đổi.",
-                              )
-                            }}
-                          >
-                            Gửi sang Lập kế hoạch{" "}
-                            <ArrowRight aria-hidden="true" size={15} />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    <Button
-                      className="secondary"
-                      onClick={() => setQuizState("setup")}
-                    >
-                      Quay lại luyện tập
-                    </Button>
-                  </div>
-                )}
-              </Card>
-            )}
-          </>
-        )}
-        {page === "Materials" && (
-          <>
-            <input
-              className="hidden"
-              ref={uploadRef}
-              type="file"
-              accept=".pdf,.txt"
-              multiple
-              onChange={(e) => {
-                setFiles([
-                  ...files,
-                  ...Array.from(e.target.files || []).map((f) => ({
-                    name: f.name,
-                    course: "Unassigned",
-                    status: "Chưa xử lý · chỉ xem trước trên máy",
-                  })),
-                ])
-                e.target.value = ""
-              }}
-            />
-            <div className="page-toolbar">
-              <div className="tabs" role="group" aria-label="View options">
-                {["Tất cả môn học", "Giải tích", "Mạng máy tính"].map((c) => (
-                  <Button
-                    key={c}
-                    aria-pressed={filter === c}
-                    className={filter === c ? "active" : ""}
-                    onClick={() => setFilter(c)}
-                  >
-                    {c}
-                  </Button>
-                ))}
+                  )}
+                </>
+              )}
+            </>
+          )}
+          {page === "Quiz" && (
+            <>
+              <div className="sf-flow-banner">
+                <div>
+                  <ClipboardCheck size={20} />
+                  <span>
+                    <strong>
+                      Bộ câu hỏi mẫu · {quizCourse}{" "}
+                      {quizTopic ? `· ${quizTopic}` : ""}
+                    </strong>
+                    <small>
+                      {availableQuestions.length} câu do nhóm biên soạn; chấm
+                      điểm xác định cho thử nghiệm giao diện.
+                    </small>
+                  </span>
+                </div>
+                <Badge tone="amber">CHƯA XÁC MINH HỌC THUẬT</Badge>
               </div>
-              <span className="count-label">{files.length} TÀI LIỆU</span>
-            </div>
-            <Card>
-              {files.filter(
-                (f) => filter === "Tất cả môn học" || f.course === filter,
-              ).length ? (
-                <div className="materials-list">
-                  {files
-                    .filter(
-                      (f) => filter === "Tất cả môn học" || f.course === filter,
-                    )
-                    .map((f, i) => (
-                      <div key={i} className="material-row">
-                        <span className="course-icon">
-                          <FileText aria-hidden="true" size={22} />
-                        </span>
-                        <div>
-                          <strong>{f.name}</strong>
-                          <p>{f.status}</p>
-                        </div>
-                        <Button
-                          className="text-button"
-                          onClick={() => setModal("manual")}
-                        >
-                          Thêm ghi chú thủ công{" "}
-                          <ArrowRight aria-hidden="true" size={14} />
-                        </Button>
-                        <Button
-                          className="icon-button"
-                          aria-label={`Xóa ${f.name}`}
-                          onClick={() => setFiles(files.filter((x) => x !== f))}
-                        >
-                          <X aria-hidden="true" size={16} />
-                        </Button>
+              <div className="sf-course-picker">
+                <label>
+                  Môn học{" "}
+                  <select
+                    value={quizCourse}
+                    onChange={(e) => {
+                      setQuizCourse(e.target.value)
+                      setQuizTopic(
+                        e.target.value === "Giải tích" ? "Đạo hàm riêng" : "",
+                      )
+                      setQuizIndex(0)
+                      setAnswers({})
+                    }}
+                  >
+                    <option>Chưa chọn môn</option>
+                    <option>Giải tích</option>
+                    <option>Kỹ thuật phần mềm</option>
+                    <option>Mạng máy tính</option>
+                  </select>
+                </label>
+                <label>
+                  Chủ đề
+                  <input
+                    value={quizTopic}
+                    onChange={(e) => {
+                      setQuizTopic(e.target.value)
+                      setQuizIndex(0)
+                      setAnswers({})
+                    }}
+                    placeholder="Nhập chủ đề"
+                  />
+                </label>
+                <span>
+                  {availableQuestions.length
+                    ? "Nguồn ví dụ demo · chưa xác minh học thuật"
+                    : `Chưa có câu hỏi được biên soạn cho ${quizTopic || quizCourse}`}
+                </span>
+              </div>
+              {availableQuestions.length ? (
+                <div className="sf-quiz-layout">
+                  <Panel title="Bài luyện tập">
+                    <div className="sf-quiz-progress">
+                      <span>
+                        Câu {quizIndex + 1} / {availableQuestions.length}
+                      </span>
+                      <span>{Object.keys(answers).length} đã trả lời</span>
+                    </div>
+                    <div className="sf-progress">
+                      <i
+                        style={{
+                          width: `${(100 * (quizIndex + 1)) / availableQuestions.length}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="sf-question">
+                      <Badge tone="blue">CÂU {quizIndex + 1}</Badge>
+                      <h2>{currentQuestion.prompt}</h2>
+                      <div className="sf-options">
+                        {currentQuestion.choices.map((choice, i) => (
+                          <label
+                            className={
+                              answers[currentQuestion.id] === i
+                                ? "selected"
+                                : ""
+                            }
+                            key={i}
+                          >
+                            <input
+                              type="radio"
+                              name={currentQuestion.id}
+                              checked={answers[currentQuestion.id] === i}
+                              onChange={() =>
+                                setAnswers((a) => ({
+                                  ...a,
+                                  [currentQuestion.id]: i,
+                                }))
+                              }
+                            />
+                            <span>{String.fromCharCode(65 + i)}</span>
+                            {choice}
+                          </label>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                    <div className="sf-actions spread">
+                      <Button
+                        disabled={quizIndex === 0}
+                        onClick={() => setQuizIndex((i) => i - 1)}
+                      >
+                        <ChevronLeft size={17} /> Câu trước
+                      </Button>
+                      {quizIndex < availableQuestions.length - 1 ? (
+                        <Button
+                          variant="primary"
+                          onClick={() => setQuizIndex((i) => i + 1)}
+                        >
+                          Câu tiếp <ChevronRight size={17} />
+                        </Button>
+                      ) : (
+                        <Button variant="primary" onClick={submitQuiz}>
+                          Nộp bài <ArrowRight size={17} />
+                        </Button>
+                      )}
+                    </div>
+                  </Panel>
+                  <Panel title="Thông tin bài làm">
+                    <div className="sf-quiz-info">
+                      <div>
+                        <span>Môn học</span>
+                        <strong>{quizCourse}</strong>
+                      </div>
+                      <div>
+                        <span>Chủ đề</span>
+                        <strong>Đạo hàm riêng</strong>
+                      </div>
+                      <div>
+                        <span>Nguồn</span>
+                        <strong>Đoạn ví dụ demo do nhóm biên soạn</strong>
+                      </div>
+                      <div>
+                        <span>Trạng thái</span>
+                        <strong>Không phải đánh giá xác minh</strong>
+                      </div>
+                    </div>
+                    <p className="sf-muted">
+                      Các câu hỏi demo có đáp án cố định. Hệ thống chưa có quy
+                      trình duyệt câu hỏi hoặc dữ liệu môn học chính thức.
+                    </p>
+                    <div className="sf-question-nav">
+                      {availableQuestions.map((q, i) => (
+                        <button
+                          key={q.id}
+                          className={quizIndex === i ? "active" : ""}
+                          onClick={() => setQuizIndex(i)}
+                          aria-label={`Đến câu ${i + 1}`}
+                        >
+                          {i + 1}
+                          {answers[q.id] !== undefined && <i />}
+                        </button>
+                      ))}
+                    </div>
+                  </Panel>
                 </div>
               ) : (
-                <div className="empty-state">
-                  <span className="empty-icon">
-                    <FolderOpen aria-hidden="true" size={29} />
-                  </span>
-                  <h2>Không gian cho tài liệu môn học của bạn.</h2>
-                  <p>
-                    Thêm PDF hoặc ghi chú được cấp phép để bắt đầu xây dựng thư
-                    viện. Bản thử nghiệm này chỉ hiển thị tên tệp trên máy;
-                    không tải lên, trích xuất hoặc lưu tệp.
-                  </p>
-                  <Button
-                    className="secondary"
-                    onClick={() => uploadRef.current?.click()}
-                  >
-                    <Upload aria-hidden="true" size={16} />
-                    Chọn tệp
-                  </Button>
-                  <Button
-                    className="text-button"
-                    onClick={() => setModal("manual")}
-                  >
-                    Hoặc thêm ghi chú thủ công{" "}
-                    <ArrowRight aria-hidden="true" size={14} />
-                  </Button>
-                </div>
+                <Panel>
+                  <Empty
+                    icon={ClipboardCheck}
+                    title="Chưa có ngân hàng câu hỏi"
+                    body="Cần câu hỏi được biên soạn hoặc duyệt trước khi bắt đầu."
+                  />
+                </Panel>
               )}
-            </Card>
-            <div className="materials-note">
-              <ShieldCheck aria-hidden="true" size={16} />
-              <p>
-                Chỉ thêm tài liệu bạn được phép sử dụng. Nếu không thể đọc tài
-                liệu, hãy thêm ghi chú thủ công thay vì dựa vào bản tóm tắt
-                không có căn cứ.
-              </p>
+            </>
+          )}
+          {page === "Results" && (
+            <>
+              {result ? (
+                <>
+                  <div className="sf-result-hero">
+                    <div>
+                      <Badge tone="violet">KẾT QUẢ BÀI DEMO</Badge>
+                      <h2>
+                        {result.correctCount}/{result.total} câu đúng
+                      </h2>
+                      <p>
+                        {result.total
+                          ? Math.round(
+                              (100 * result.correctCount) / result.total,
+                            )
+                          : 0}
+                        % chính xác · Giải tích · Đạo hàm riêng
+                      </p>
+                      <small>
+                        Đây là bài luyện tập mẫu, chưa phải đánh giá được xác
+                        minh.
+                      </small>
+                    </div>
+                    <div
+                      className="sf-result-ring"
+                      style={
+                        {
+                          "--score": `${
+                            result.total
+                              ? (100 * result.correctCount) / result.total
+                              : 0
+                          }%`,
+                        } as React.CSSProperties
+                      }
+                    >
+                      <strong>
+                        {result.total
+                          ? Math.round(
+                              (100 * result.correctCount) / result.total,
+                            )
+                          : 0}
+                        %
+                      </strong>
+                    </div>
+                  </div>
+                  <div className="sf-grid-2">
+                    <Panel title="Hiệu suất theo chủ đề">
+                      {result.topics.map((t) => (
+                        <div className="sf-topic" key={t.topic}>
+                          <div>
+                            <strong>{t.topic}</strong>
+                            <span>
+                              {t.correctCount}/{t.gradedCount} câu đúng
+                            </span>
+                          </div>
+                          <div className="sf-progress">
+                            <i
+                              style={{
+                                width: `${(100 * t.correctCount) / t.gradedCount}%`,
+                              }}
+                            />
+                          </div>
+                          <small>
+                            Tỷ lệ lỗi:{" "}
+                            {t.errorRate === null
+                              ? "Chưa đủ dữ liệu"
+                              : `${Math.round(t.errorRate * 100)}%`}{" "}
+                            · Cỡ mẫu {t.gradedCount} câu
+                          </small>
+                        </div>
+                      ))}
+                    </Panel>
+                    <Panel title="Gợi ý ôn tập">
+                      <div className="sf-recommend">
+                        <Sparkles size={20} />
+                        <div>
+                          <strong>{result.recommendations[0]?.topic}</strong>
+                          <p>{result.recommendations[0]?.reason}</p>
+                          <Badge
+                            tone={
+                              result.recommendations[0]?.status ===
+                              "insufficient-data"
+                                ? "amber"
+                                : "blue"
+                            }
+                          >
+                            {result.recommendations[0]?.status ===
+                            "insufficient-data"
+                              ? "BẰNG CHỨNG CÒN ÍT"
+                              : "ĐỀ XUẤT"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="sf-muted">
+                        Ngưỡng 3 câu hiện chỉ là cấu hình demo; nhóm cần duyệt
+                        trước khi dùng trong đánh giá thật.
+                      </p>
+                      <Button variant="primary" onClick={handoffRevision}>
+                        Đề xuất lịch ôn tập <ArrowRight size={17} />
+                      </Button>
+                    </Panel>
+                  </div>
+                  <Panel
+                    title="Xem lại câu trả lời"
+                    className="sf-spaced-panel"
+                  >
+                    <div className="sf-review-list">
+                      {questions.map((q, i) => {
+                        const correct =
+                          result.attempt.answers[q.id] === q.answerIndex
+                        return (
+                          <div key={q.id}>
+                            <Badge tone={correct ? "green" : "red"}>
+                              {correct ? "ĐÚNG" : "CẦN XEM LẠI"}
+                            </Badge>
+                            <strong>
+                              {i + 1}. {q.prompt}
+                            </strong>
+                            <p>
+                              Bạn chọn:{" "}
+                              {q.choices[result.attempt.answers[q.id]]}
+                            </p>
+                            {!correct && (
+                              <p>
+                                Đáp án mẫu: <b>{q.choices[q.answerIndex]}</b>
+                              </p>
+                            )}
+                            <small>
+                              Nguồn: {passage.title} · đoạn ví dụ ở màn hình Học
+                              tập
+                            </small>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </Panel>
+                  <div className="sf-actions">
+                    <Button
+                      onClick={() => {
+                        setAnswers({})
+                        setQuizIndex(0)
+                        goto("Quiz")
+                      }}
+                    >
+                      <RotateCcw size={17} /> Làm bài mới
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <Panel>
+                  <Empty
+                    icon={ChartNoAxesCombined}
+                    title="Chưa có kết quả"
+                    body="Hoàn thành bài ôn tập mẫu để xem điểm và gợi ý ôn tập dựa trên câu trả lời của bạn."
+                    action={
+                      <Button variant="primary" onClick={() => goto("Quiz")}>
+                        Mở bài ôn tập
+                      </Button>
+                    }
+                  />
+                </Panel>
+              )}
+            </>
+          )}
+          {page === "Materials" && (
+            <div className="sf-grid-2">
+              <Panel title="Thư viện tài liệu">
+                <div className="sf-upload">
+                  <FolderOpen size={30} />
+                  <h3>Chọn tài liệu được phép sử dụng</h3>
+                  <p>
+                    Bản demo chỉ ghi nhận tên tệp PDF trên thiết bị. Chưa tải
+                    lên hoặc trích xuất nội dung.
+                  </p>
+                  <label className="sf-button sf-primary">
+                    Chọn PDF
+                    <input
+                      hidden
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        if (
+                          file.type !== "application/pdf" &&
+                          !file.name.toLowerCase().endsWith(".pdf")
+                        ) {
+                          setFileError(
+                            "Chỉ hỗ trợ PDF dạng văn bản. Hãy dùng ghi chú thủ công nếu cần.",
+                          )
+                          return
+                        }
+                        setMaterials((ms) => [
+                          ...ms,
+                          {
+                            id: id(),
+                            name: file.name,
+                            course: manualCourse,
+                            status: "selected",
+                          },
+                        ])
+                        setFileError("")
+                        e.target.value = ""
+                      }}
+                    />
+                  </label>
+                  {fileError && <p className="sf-error">{fileError}</p>}
+                </div>
+                <div className="sf-material-list">
+                  {materials.map((m) => (
+                    <div key={m.id}>
+                      <FileText size={19} />
+                      <span>
+                        <strong>{m.name}</strong>
+                        <small>
+                          {m.course} ·{" "}
+                          {m.status === "selected"
+                            ? "Chỉ chọn tên tệp · chưa xử lý"
+                            : "Ghi chú thủ công · chưa xác minh"}
+                        </small>
+                      </span>
+                      <button
+                        onClick={() =>
+                          setMaterials((ms) => ms.filter((x) => x.id !== m.id))
+                        }
+                        aria-label={`Xóa ${m.name}`}
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {!materials.length && (
+                  <p className="sf-muted">Thư viện đang trống.</p>
+                )}
+              </Panel>
+              <Panel title="Thêm ghi chú thủ công">
+                <form
+                  className="sf-form"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (!manualTitle.trim() || !manualText.trim()) return
+                    setMaterials((ms) => [
+                      ...ms,
+                      {
+                        id: id(),
+                        name: manualTitle.trim(),
+                        course: manualCourse,
+                        status: "manual",
+                        text: manualText.trim(),
+                      },
+                    ])
+                    setManualTitle("")
+                    setManualText("")
+                    notify("Đã thêm ghi chú trong phiên làm việc này.")
+                  }}
+                >
+                  <label>
+                    Tên ghi chú
+                    <input
+                      required
+                      value={manualTitle}
+                      onChange={(e) => setManualTitle(e.target.value)}
+                      placeholder="Ví dụ: Chương 3 · Đạo hàm riêng"
+                    />
+                  </label>
+                  <label>
+                    Môn học
+                    <select
+                      value={manualCourse}
+                      onChange={(e) => setManualCourse(e.target.value)}
+                    >
+                      <option>Giải tích</option>
+                      <option>Kỹ thuật phần mềm</option>
+                      <option>Mạng máy tính</option>
+                    </select>
+                  </label>
+                  <label>
+                    Nội dung được phép sử dụng
+                    <textarea
+                      required
+                      value={manualText}
+                      onChange={(e) => setManualText(e.target.value)}
+                      placeholder="Dán đoạn tài liệu hoặc ghi chú của bạn..."
+                    />
+                  </label>
+                  <Button variant="primary" type="submit">
+                    <Plus size={17} /> Thêm ghi chú
+                  </Button>
+                </form>
+                <p className="sf-muted sf-spaced">
+                  Ghi chú chỉ ở bộ nhớ phiên; không có xử lý PDF, OCR, lưu trữ
+                  đám mây hoặc AI trực tiếp.
+                </p>
+              </Panel>
             </div>
-          </>
-        )}
-      </main>
-      {modal && (
+          )}
+        </main>
+      </div>
+      {notice && (
+        <div className="sf-toast" role="status">
+          <Check size={18} />
+          {notice}
+          <button onClick={() => setNotice("")} aria-label="Đóng thông báo">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {modal === "task" && (
         <Modal
-          title={
-            {
-              task: edit ? "Chỉnh sửa công việc" : "Thêm công việc",
-              proposal: "Kế hoạch học được đề xuất",
-              availability: "Thời gian rảnh của bạn",
-              reflection: "Thời gian nhìn lại",
-              submit: "Gửi câu trả lời?",
-              notifications: "Thông báo của bạn",
-              account: "Không gian của bạn",
-              settings: "Cài đặt bản thử nghiệm",
-              help: "Một chút hướng dẫn",
-              manual: "Thêm ghi chú thủ công",
-              deadline: "Báo cáo dự án",
-            }[modal] || modal
-          }
-          close={() => setModal("")}
+          title={editing ? "Chỉnh sửa công việc" : "Thêm công việc"}
+          close={() => setModal(null)}
         >
-          {modal === "task" ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (remaining > effort) {
-                  notify(
-                    "Thời lượng còn lại không thể lớn hơn thời lượng dự kiến.",
-                  )
-                  return
+          <form className="sf-form" onSubmit={saveTask}>
+            <label>
+              Tên công việc
+              <input
+                required
+                value={taskForm.title}
+                onChange={(e) =>
+                  setTaskForm((f) => ({ ...f, title: e.target.value }))
                 }
-                const t = {
-                  id: edit?.id || Date.now(),
-                  title: name.trim(),
-                  course,
-                  time: edit?.time || "Chưa xếp lịch",
-                  done: edit?.done || false,
-                  effort,
-                  priority,
-                  deadline,
-                }
-                if (!t.title) return
-                setTasks(
-                  edit
-                    ? tasks.map((x) => (x.id === edit.id ? t : x))
-                    : [...tasks, t],
-                )
-                setModal("")
-                notify(
-                  "Đã lưu công việc. Lịch đã xác nhận của bạn không thay đổi.",
-                )
-              }}
-            >
+                placeholder="Ví dụ: Luyện bài tập chương 3"
+              />
+            </label>
+            <div className="sf-form-grid">
               <label>
-                Tên công việc
+                Môn học
+                <select
+                  value={taskForm.course}
+                  onChange={(e) =>
+                    setTaskForm((f) => ({ ...f, course: e.target.value }))
+                  }
+                >
+                  <option>Giải tích</option>
+                  <option>Kỹ thuật phần mềm</option>
+                  <option>Mạng máy tính</option>
+                </select>
+              </label>
+              <label>
+                Ưu tiên
+                <select
+                  value={taskForm.priority}
+                  onChange={(e) =>
+                    setTaskForm((f) => ({
+                      ...f,
+                      priority: e.target.value as AcademicTask["priority"],
+                    }))
+                  }
+                >
+                  <option>Thấp</option>
+                  <option>Trung bình</option>
+                  <option>Cao</option>
+                </select>
+              </label>
+              <label>
+                Thời lượng dự kiến (phút)
                 <input
+                  type="number"
+                  min="15"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Bạn muốn làm gì?"
+                  value={taskForm.estimatedMinutes}
+                  onChange={(e) =>
+                    setTaskForm((f) => ({
+                      ...f,
+                      estimatedMinutes: Number(e.target.value),
+                    }))
+                  }
                 />
               </label>
-              <div className="form-grid">
-                <label>
-                  Môn học
-                  <select
-                    value={course}
-                    onChange={(e) => setCourse(e.target.value)}
-                  >
-                    {["Giải tích", "Kỹ thuật phần mềm", "Mạng máy tính"].map(
-                      (c) => (
-                        <option key={c}>{c}</option>
-                      ),
-                    )}
-                  </select>
-                </label>
-                <label>
-                  Mức ưu tiên
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                  >
-                    {["Thấp", "Trung bình", "Cao"].map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Thời lượng dự kiến (phút)
-                  <input
-                    type="number"
-                    min="15"
-                    max="480"
-                    required
-                    value={effort}
-                    onChange={(e) => setEffort(+e.target.value)}
-                  />
-                </label>
-                <label>
-                  Thời lượng còn lại (phút)
-                  <input
-                    type="number"
-                    min="0"
-                    max={effort}
-                    required
-                    value={remaining}
-                    onChange={(e) => setRemaining(+e.target.value)}
-                  />
-                </label>
-              </div>
               <label>
-                Hạn chót · Europe/London
+                Còn lại (phút)
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={taskForm.remainingMinutes}
+                  onChange={(e) =>
+                    setTaskForm((f) => ({
+                      ...f,
+                      remainingMinutes: Number(e.target.value),
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <label>
+              Hạn chót · ngày địa phương
+              <input
+                type="date"
+                min={localDate(today())}
+                required
+                value={taskForm.deadline}
+                onChange={(e) =>
+                  setTaskForm((f) => ({ ...f, deadline: e.target.value }))
+                }
+              />
+            </label>
+            <div className="sf-actions spread">
+              {editing ? (
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    setTasks((ts) => ts.filter((t) => t.id !== editing.id))
+                    setConfirmed((bs) =>
+                      bs.filter((b) => b.taskId !== editing.id),
+                    )
+                    setProposal(null)
+                    setModal(null)
+                    notify("Đã xóa công việc và các buổi học liên quan.")
+                  }}
+                >
+                  <Trash2 size={16} /> Xóa
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="sf-actions">
+                <Button onClick={() => setModal(null)}>Hủy</Button>
+                <Button variant="primary" type="submit">
+                  Lưu công việc
+                </Button>
+              </div>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {modal === "availability" && (
+        <Modal title="Thời gian có thể học" close={() => setModal(null)}>
+          <p className="sf-muted">
+            Thêm một khoảng học lặp lại theo thứ trong tuần. Kế hoạch mới sẽ chỉ
+            dùng các khoảng này.
+          </p>
+          <form
+            className="sf-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              const start =
+                Number(availabilityForm.start.slice(0, 2)) * 60 +
+                Number(availabilityForm.start.slice(3))
+              const end =
+                Number(availabilityForm.end.slice(0, 2)) * 60 +
+                Number(availabilityForm.end.slice(3))
+              if (end - start < 15) {
+                notify("Khoảng học phải dài ít nhất 15 phút.")
+                return
+              }
+              setSlots((ss) => [
+                ...ss,
+                {
+                  id: id(),
+                  day: Number(availabilityForm.day),
+                  startMinute: start,
+                  endMinute: end,
+                },
+              ])
+              setProposal(null)
+              setModal(null)
+            }}
+          >
+            <div className="sf-form-grid">
+              <label>
+                Thứ
+                <select
+                  value={availabilityForm.day}
+                  onChange={(e) =>
+                    setAvailabilityForm((f) => ({
+                      ...f,
+                      day: Number(e.target.value),
+                    }))
+                  }
+                >
+                  {[
+                    "Thứ 2",
+                    "Thứ 3",
+                    "Thứ 4",
+                    "Thứ 5",
+                    "Thứ 6",
+                    "Thứ 7",
+                    "Chủ nhật",
+                  ].map((d, i) => (
+                    <option value={i} key={i}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Bắt đầu
+                <input
+                  type="time"
+                  value={availabilityForm.start}
+                  onChange={(e) =>
+                    setAvailabilityForm((f) => ({
+                      ...f,
+                      start: e.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                Kết thúc
+                <input
+                  type="time"
+                  value={availabilityForm.end}
+                  onChange={(e) =>
+                    setAvailabilityForm((f) => ({ ...f, end: e.target.value }))
+                  }
+                />
+              </label>
+            </div>
+            <Button variant="primary" type="submit">
+              Thêm khoảng học
+            </Button>
+          </form>
+          <div className="sf-slot-edit">
+            {slots.map((s) => (
+              <div key={s.id}>
+                {["T2", "T3", "T4", "T5", "T6", "T7", "CN"][s.day]} ·{" "}
+                {formatTime(s.startMinute)}–{formatTime(s.endMinute)}
+                <button
+                  onClick={() => {
+                    setSlots((ss) => ss.filter((x) => x.id !== s.id))
+                    setProposal(null)
+                  }}
+                  aria-label="Xóa khoảng học"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+      {modal === "commitment" && (
+        <Modal title="Thêm cam kết bận" close={() => setModal(null)}>
+          <form
+            className="sf-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              const start =
+                Number(commitmentForm.start.slice(0, 2)) * 60 +
+                Number(commitmentForm.start.slice(3))
+              const end =
+                Number(commitmentForm.end.slice(0, 2)) * 60 +
+                Number(commitmentForm.end.slice(3))
+              if (end <= start) {
+                notify("Giờ kết thúc phải sau giờ bắt đầu.")
+                return
+              }
+              setCommitments((cs) => [
+                ...cs,
+                {
+                  id: id(),
+                  date: commitmentForm.date,
+                  startMinute: start,
+                  endMinute: end,
+                  title: commitmentForm.title.trim(),
+                },
+              ])
+              setProposal(null)
+              setModal(null)
+            }}
+          >
+            <label>
+              Tên cam kết
+              <input
+                required
+                value={commitmentForm.title}
+                onChange={(e) =>
+                  setCommitmentForm((f) => ({ ...f, title: e.target.value }))
+                }
+                placeholder="Ví dụ: Họp nhóm"
+              />
+            </label>
+            <div className="sf-form-grid">
+              <label>
+                Ngày
                 <input
                   type="date"
                   required
-                  min="2025-04-21"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                />
-              </label>
-              <div className="modal-actions">
-                {edit && (
-                  <Button
-                    type="button"
-                    className="danger-text"
-                    onClick={() => {
-                      setTasks(tasks.filter((t) => t.id !== edit.id))
-                      setModal("")
-                    }}
-                  >
-                    Xóa công việc
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  className="secondary"
-                  onClick={() => setModal("")}
-                >
-                  Hủy
-                </Button>
-                <Button className="primary" type="submit">
-                  {edit ? "Lưu thay đổi" : "Thêm công việc"}
-                </Button>
-              </div>
-            </form>
-          ) : modal === "availability" ? (
-            <>
-              <p>
-                Thời gian học hôm nay đã được sinh viên xác nhận, sau các cam
-                kết hiện có.
-              </p>
-              <label>
-                Khoảng thời gian rảnh
-                <select
-                  value={capacity}
-                  onChange={(e) => setCapacity(+e.target.value)}
-                >
-                  <option value={60}>17:00–18:00 · 60 phút</option>
-                  <option value={30}>17:00–17:30 · 30 phút</option>
-                  <option value={15}>
-                    17:00–17:15 · 15 phút (thời gian hạn chế)
-                  </option>
-                </select>
-              </label>
-              <div className="info-banner">
-                <CalendarDays aria-hidden="true" size={18} />
-                <p>
-                  Cam kết đã xác nhận: Họp nhóm, 14:00–15:00. Các khoảng thời
-                  gian được đề xuất không được trùng nhau.
-                </p>
-              </div>
-              <Button
-                className="primary"
-                onClick={() => {
-                  setModal("")
-                  notify(
-                    "Đã cập nhật thời gian rảnh. Các buổi học hiện có không thay đổi.",
-                  )
-                }}
-              >
-                Xác nhận thời gian rảnh
-              </Button>
-            </>
-          ) : modal === "proposal" ? (
-            <>
-              <p>
-                Đây là đề xuất, không phải thay đổi lịch. Hãy xem lại khoảng ôn
-                tập bổ sung trước khi xác nhận.
-              </p>
-              {plannerSource && (
-                <div className="info-banner">
-                  <FileText aria-hidden="true" size={18} />
-                  <p>Nguồn lập lịch: {plannerSource}</p>
-                </div>
-              )}
-              <label>
-                Điều chỉnh bằng câu lệnh
-                <textarea
-                  value={plannerPrompt}
-                  onChange={(e) => setPlannerPrompt(e.target.value)}
-                  placeholder="Ví dụ: chuyển buổi học sang sáng thứ Bảy..."
-                />
-              </label>
-              <div className="proposal-block">
-                <BookOpen aria-hidden="true" size={22} />
-                <div>
-                  <strong>Đạo hàm riêng · Giải tích</strong>
-                  <p>
-                    Thứ 2, 21 tháng 4 · 17:00–
-                    {proposalDuration === 30 ? "17:30" : "18:00"}
-                  </p>
-                </div>
-                <span className="quiet-badge">ĐỀ XUẤT</span>
-              </div>
-              <label>
-                Thời lượng học
-                <select
-                  value={proposalDuration}
-                  onChange={(e) => setProposalDuration(+e.target.value)}
-                >
-                  <option value={30}>30 phút</option>
-                  <option value={60}>60 phút</option>
-                </select>
-              </label>
-              {capacity < proposalDuration ||
-              tasks.some((t) => t.time.startsWith("17:00")) ? (
-                <div className="warning-banner">
-                  <AlertTriangle aria-hidden="true" size={19} />
-                  <div>
-                    <strong>
-                      Chưa xếp lịch:{" "}
-                      {capacity < proposalDuration
-                        ? "không đủ thời gian rảnh"
-                        : "trùng với cam kết khác"}
-                    </strong>
-                    <p>
-                      {capacity < proposalDuration
-                        ? `${proposalDuration} phút cần thiết, ${capacity} phút còn trống.`
-                        : "Một khoảng thời gian đã xác nhận bắt đầu lúc 17:00."}{" "}
-                      Hãy điều chỉnh thời gian rảnh hoặc giữ công việc này ngoài
-                      lịch.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="constraint-list">
-                  <span>
-                    <Check aria-hidden="true" size={15} />
-                    Trong khoảng thời gian đã xác nhận
-                  </span>
-                  <span>
-                    <Check aria-hidden="true" size={15} />
-                    Trước hạn chót ngày 28 tháng 4
-                  </span>
-                  <span>
-                    <Check aria-hidden="true" size={15} />
-                    Không trùng với cam kết khác
-                  </span>
-                </div>
-              )}
-              <div className="modal-actions">
-                <Button className="secondary" onClick={() => setModal("")}>
-                  Từ chối
-                </Button>
-                <Button
-                  className="text-button"
-                  onClick={() => setModal("availability")}
-                >
-                  Chỉnh sửa thời gian rảnh
-                </Button>
-                <Button
-                  className="primary"
-                  disabled={
-                    capacity < proposalDuration ||
-                    tasks.some((t) => t.time.startsWith("17:00"))
+                  value={commitmentForm.date}
+                  onChange={(e) =>
+                    setCommitmentForm((f) => ({ ...f, date: e.target.value }))
                   }
-                  onClick={() => {
-                    setTasks([
-                      ...tasks,
-                      {
-                        id: Date.now(),
-                        title: "Ôn tập đạo hàm riêng",
-                        course: "Giải tích",
-                        time: `17:00 – ${
-                          proposalDuration === 30 ? "17:30" : "18:00"
-                        }`,
-                        done: false,
-                        effort: proposalDuration,
-                        priority: "Trung bình",
-                        deadline: "2025-04-28",
-                      },
-                    ])
-                    setRevision(false)
-                    setModal("")
-                    notify(
-                      "Đã xác nhận kế hoạch. Nội dung ôn tập đã được thêm vào lịch.",
-                    )
-                  }}
-                >
-                  Xác nhận kế hoạch
-                </Button>
-              </div>
-            </>
-          ) : modal === "reflection" ? (
-            <>
-              <p>
-                Xác nhận nội dung bạn đã học. Hoàn thành hoạt động không phải
-                bằng chứng về mức độ thành thạo.
-              </p>
-              <div className="reflection-summary">
-                <CheckCheck aria-hidden="true" size={18} />
-                <div>
-                  <strong>Đã ôn tập đạo hàm riêng</strong>
-                  <p>
-                    {Math.floor(seconds / 60)} phút hoạt động trong buổi học ·
-                    Giải tích
-                  </p>
-                </div>
-              </div>
-              <label>
-                Phản hồi của bạn
-                <textarea
-                  value={reflection}
-                  onChange={(e) => setReflection(e.target.value)}
-                  placeholder="Bạn đã học nội dung gì? Bạn muốn xem lại điều gì?"
                 />
               </label>
-              <Button
-                className="primary"
-                onClick={() => {
-                  setSessionSaved(true)
-                  setModal("")
-                  notify("Đã xác nhận kết quả buổi học cho bản minh họa này.")
-                }}
-              >
-                Xác nhận kết quả buổi học
-              </Button>
-            </>
-          ) : modal === "submit" ? (
-            <>
-              <p>
-                Bạn đã chọn <strong>{answer}</strong>. Gửi để xem kết quả cố
-                định của câu hỏi mẫu do tác giả biên soạn?
-              </p>
-              <div className="modal-actions">
-                <Button className="secondary" onClick={() => setModal("")}>
-                  Tiếp tục xem lại
-                </Button>
-                <Button
-                  className="primary"
-                  onClick={() => {
-                    setQuizState("results")
-                    setModal("")
-                  }}
-                >
-                  Gửi đáp án
-                </Button>
-              </div>
-            </>
-          ) : modal === "manual" ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const data = new FormData(e.currentTarget)
-                setFiles([
-                  ...files,
-                  {
-                    name: String(data.get("title")),
-                    course: "Giải tích",
-                    status:
-                      "Ghi chú thủ công · chưa xác minh · bản minh họa cục bộ",
-                  },
-                ])
-                setModal("")
-                notify("Manual note listed in your demo library.")
-              }}
-            >
-              <p>
-                Đây là lựa chọn thay thế khi không thể xử lý tài liệu. Ghi chú
-                chưa được xác minh.
-              </p>
               <label>
-                Tên ghi chú
+                Bắt đầu
                 <input
-                  name="title"
-                  required
-                  placeholder="Ví dụ: Bài giảng Giải tích, Chương 3"
+                  type="time"
+                  value={commitmentForm.start}
+                  onChange={(e) =>
+                    setCommitmentForm((f) => ({ ...f, start: e.target.value }))
+                  }
                 />
               </label>
               <label>
-                Nội dung ghi chú
-                <textarea
-                  required
-                  name="note"
-                  placeholder="Dán đoạn nội dung bạn được phép sử dụng..."
+                Kết thúc
+                <input
+                  type="time"
+                  value={commitmentForm.end}
+                  onChange={(e) =>
+                    setCommitmentForm((f) => ({ ...f, end: e.target.value }))
+                  }
                 />
               </label>
-              <Button className="primary" type="submit">
-                Thêm ghi chú
-              </Button>
-            </form>
-          ) : modal === "settings" ? (
-            <>
-              <p>
-                Xem trạng thái không gian trống dành cho sinh viên mới. Các thay
-                đổi trong bản minh họa chỉ là tạm thời và sẽ đặt lại khi tải lại
-                trang.
-              </p>
-              <Button
-                className="secondary"
-                onClick={() => {
-                  setTasks([])
-                  go("Dashboard")
-                  setModal("")
-                }}
-              >
-                Xem thử không gian trống
-              </Button>
-            </>
-          ) : modal === "notifications" ? (
-            <div className="notification-content">
-              <Bell aria-hidden="true" size={28} />
-              <h3>Bạn đã xem hết thông báo.</h3>
-              <p>
-                Hạn chót tiếp theo của bạn là Báo cáo dự án, ngày 25 tháng 4.
-              </p>
             </div>
-          ) : (
-            <>
-              <p>
-                {modal === "help"
-                  ? "Bắt đầu ở Tổng quan, sắp xếp công việc trong Lập kế hoạch, tập trung ở Học tập và kiểm tra mức độ hiểu bài trong Ôn tập. Phản hồi AI và dữ liệu đánh giá chỉ mang tính minh họa."
-                  : modal === "account"
-                    ? "Sinh viên · Không gian thử nghiệm cá nhân. Không có tài khoản hoặc lưu trữ lâu dài nào được kết nối."
-                    : "Kỹ thuật phần mềm · Hạn chót ngày 25 tháng 4 năm 2025. Mở Lập kế hoạch để sắp xếp công việc."}
-              </p>
-              <Button className="secondary" onClick={() => setModal("")}>
-                Đã hiểu
-              </Button>
-            </>
-          )}
+            <Button variant="primary" type="submit">
+              Lưu cam kết
+            </Button>
+          </form>
+          <div className="sf-slot-edit">
+            {commitments.map((c) => (
+              <div key={c.id}>
+                {c.title} · {formatDate(c.date)} · {formatTime(c.startMinute)}–
+                {formatTime(c.endMinute)}
+                <button
+                  onClick={() => {
+                    setCommitments((cs) => cs.filter((x) => x.id !== c.id))
+                    setProposal(null)
+                  }}
+                  aria-label="Xóa cam kết"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
         </Modal>
       )}
-      {notice && (
-        <div className="toast">
-          <span role="status">{notice}</span>
-          <Check aria-hidden="true" size={17} />
-          <Button
-            className="icon-button"
-            aria-label="Dismiss notification"
-            onClick={() => setNotice("")}
-          >
-            <X aria-hidden="true" size={14} />
-          </Button>
-        </div>
+      {modal === "reflection" && study && (
+        <Modal title="Xác nhận kết quả buổi học" close={() => setModal(null)}>
+          <p className="sf-muted">
+            Tóm tắt do sinh viên xác nhận; không chứng minh mức độ thành thạo.
+          </p>
+          <div className="sf-reflection-summary">
+            <strong>{study.topic}</strong>
+            <span>
+              {study.course} · {Math.floor(study.elapsedSeconds / 60)} phút hoạt
+              động
+            </span>
+          </div>
+          <label className="sf-form">
+            Bạn đã học gì?
+            <textarea
+              value={reflection}
+              onChange={(e) => setReflection(e.target.value)}
+              placeholder="Điều đã hiểu và điều muốn ôn tiếp..."
+            />
+          </label>
+          <div className="sf-actions spread">
+            <Button
+              onClick={() => {
+                setModal(null)
+                notify("Chưa ghi nhận kết quả buổi học.")
+              }}
+            >
+              Để sau
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setOutcomes((os) => [
+                  ...os,
+                  {
+                    sessionId: study.id,
+                    reflection,
+                    elapsedSeconds: study.elapsedSeconds,
+                    confirmedAt: new Date().toISOString(),
+                    status: "student-confirmed",
+                  },
+                ])
+                setStudy((s) => (s ? { ...s, status: "completed" } : s))
+                setModal(null)
+                notify("Đã xác nhận kết quả buổi học trong bản demo.")
+              }}
+            >
+              Xác nhận kết quả
+            </Button>
+          </div>
+        </Modal>
       )}
+      {modal === "submit" && (
+        <Modal title="Gửi bài làm mẫu?" close={() => setModal(null)}>
+          <p>
+            Bạn đã trả lời {Object.keys(answers).length}/
+            {availableQuestions.length} câu. Kết quả chỉ phản ánh bộ câu hỏi
+            demo, không phải đánh giá học thuật đã xác minh.
+          </p>
+          <div className="sf-actions">
+            <Button onClick={() => setModal(null)}>Xem lại</Button>
+            <Button variant="primary" onClick={confirmQuiz}>
+              Gửi bài làm
+            </Button>
+          </div>
+        </Modal>
+      )}
+      {modal === "notifications" && (
+        <Modal title="Hạn chót sắp tới" close={() => setModal(null)}>
+          {deadlineSoon.length ? (
+            <div className="sf-notification-list">
+              {[...deadlineSoon]
+                .sort((a, b) => a.deadline.localeCompare(b.deadline))
+                .map((task) => (
+                  <div key={task.id}>
+                    <CalendarDays size={17} />
+                    <span>
+                      <strong>{task.title}</strong>
+                      <small>
+                        {task.course} · {formatDate(task.deadline)} · còn{" "}
+                        {task.remainingMinutes} phút
+                      </small>
+                    </span>
+                    <Badge
+                      tone={daysUntil(task.deadline) <= 1 ? "red" : "amber"}
+                    >
+                      {dateLabel(task.deadline)}
+                    </Badge>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <Empty
+              icon={Check}
+              title="Chưa có hạn chót trong 7 ngày"
+              body="Khi có công việc sắp đến hạn, bạn sẽ thấy tại đây."
+            />
+          )}
+          <div className="sf-actions">
+            <Button
+              onClick={() => {
+                setModal(null)
+                goto("Planner")
+              }}
+            >
+              Mở Planner <ArrowRight size={16} />
+            </Button>
+          </div>
+        </Modal>
+      )}
+      {modal === "settings" && (
+        <Modal title="Cài đặt & trợ giúp" close={() => setModal(null)}>
+          <div className="sf-help">
+            <CircleHelp size={20} />
+            <p>
+              StudyFlow AI hiện là bản demo frontend. Công việc, thời gian rảnh,
+              lịch đã xác nhận và kết quả mẫu được lưu trong localStorage của
+              trình duyệt này. Không có tài khoản hay đồng bộ đám mây.
+            </p>
+          </div>
+          <Button
+            variant="danger"
+            onClick={() => {
+              localStorage.removeItem(storageKey)
+              setTasks([])
+              setSlots([])
+              setCommitments([])
+              setConfirmed([])
+              setOutcomes([])
+              setResult(null)
+              setProposal(null)
+              setStudy(null)
+              setModal(null)
+              goto("Dashboard")
+              notify("Đã đặt lại dữ liệu demo trên thiết bị này.")
+            }}
+          >
+            <RotateCcw size={17} /> Đặt lại dữ liệu demo
+          </Button>
+        </Modal>
+      )}
+      <AssistantPanel
+        open={assistantOpen}
+        close={() => setAssistantOpen(false)}
+        launch={() => setAssistantOpen(true)}
+        messages={assistantMessages}
+        busy={assistantBusy}
+        send={sendAssistant}
+        choose={chooseAssistant}
+      />
     </div>
   )
 }

@@ -1,0 +1,59 @@
+.as-launcher{position:fixed;right:24px;bottom:24px;z-index:55;min-height:52px;display:flex;align-items:center;gap:9px;border:1px solid #cbb2e5;border-radius:999px;background:#211c27;color:#fff;padding:0 19px;box-shadow:0 13px 30px #211c2740;font-size:12px;font-weight:800;transition:transform .16s,box-shadow .16s}
+.as-launcher svg{color:#d1aef4}
+.as-launcher:hover{transform:translateY(-2px);box-shadow:0 18px 35px #211c2747}
+.as-panel{position:fixed;z-index:70;right:24px;bottom:24px;width:min(408px,calc(100vw - 32px));height:min(680px,calc(100vh - 48px));display:flex;flex-direction:column;background:#fff;border:1px solid #e6ddec;border-radius:23px;box-shadow:0 25px 70px #1b142b35;overflow:hidden;color:#1c1c20}
+.as-panel :focus-visible,.as-launcher:focus-visible{outline:3px solid #aa84df;outline-offset:2px}
+.as-header{display:flex;align-items:center;gap:11px;padding:17px 18px;background:#1d1a22;color:#fff}
+.as-header-icon{width:38px;height:38px;border-radius:12px;background:#3a2d45;color:#d3b2f3;display:grid;place-items:center}
+.as-header>div:nth-child(2){flex:1}
+.as-header strong,.as-header small{display:block}
+.as-header strong{font-size:14px;letter-spacing:-.02em}
+.as-header small{font-size:10px;color:#c3b6ca;margin-top:3px}
+.as-header button{width:32px;height:32px;border:0;border-radius:9px;background:#302a36;color:#fff;display:grid;place-items:center}
+.as-header button:hover{background:#4b3b54}
+.as-intro{padding:15px 18px 12px;background:#f7f2fb;border-bottom:1px solid #eee4f4}
+.as-intro span{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#8c63b6}
+.as-intro p{font-size:11px;line-height:1.6;color:#71697a;margin-top:7px}
+.as-messages{flex:1;min-height:0;overflow-y:auto;padding:16px 15px;display:flex;flex-direction:column;gap:13px;background:#fff}
+.as-message{display:flex;align-items:flex-start;gap:8px;max-width:100%}
+.as-message-icon{width:26px;height:26px;min-width:26px;display:grid;place-items:center;border-radius:9px;background:#f0e6f9;color:#9470bb;font-size:8px;font-weight:800}
+.as-message>div{max-width:calc(100% - 34px);background:#f7f4f9;border-radius:3px 13px 13px 13px;padding:10px 12px}
+.as-message p{font-size:11px;line-height:1.65;color:#4d4854;white-space:pre-wrap}
+.as-message.user{flex-direction:row-reverse}
+.as-message.user .as-message-icon{background:#e8f4c9;color:#475a25}
+.as-message.user>div{background:#eff7d8;border-radius:13px 3px 13px 13px}
+.as-message.user p{color:#37402b}
+.as-choices{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.as-choices button{min-height:32px;border:1px solid #d7c3e9;background:#fff;color:#745397;border-radius:999px;padding:6px 9px;font-size:10px;font-weight:800;display:flex;align-items:center;gap:4px}
+.as-choices button:hover{background:#f3eafa}
+.as-processing{display:flex;align-items:center;gap:4px;color:#8a7b95;font-size:10px;background:#f8f4fb;border-radius:12px;padding:10px 12px;align-self:flex-start}
+.as-processing span{width:4px;height:4px;border-radius:50%;background:#b892dc;animation:as-pulse 1s infinite ease-in-out}
+.as-processing span:nth-child(2){animation-delay:.15s}
+.as-processing span:nth-child(3){animation-delay:.3s}
+@keyframes as-pulse{0%,70%,100%{opacity:.25;transform:scale(.7)}
+35%{opacity:1;transform:scale(1.2)}
+}
+.as-suggest{border-top:1px solid #f0edf2;padding:10px 15px}
+.as-suggest small{font-size:9px;font-weight:800;color:#9992a0;letter-spacing:.08em}
+.as-suggest>div{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding:7px 0 3px}
+.as-suggest button{flex:none;border:1px solid #e7dded;border-radius:999px;background:#fff;padding:6px 9px;color:#745a8a;font-size:10px;font-weight:700}
+.as-suggest button:hover{background:#f7f1fb}
+.as-composer{padding:12px 15px 13px;background:#faf9fb;border-top:1px solid #eeeaf0}
+.as-composer label{display:block;font-size:10px;font-weight:800;color:#61596b;margin-bottom:6px}
+.as-composer>div{display:flex;align-items:end;gap:6px;background:#fff;border:1px solid #e4dce9;border-radius:13px;padding:6px}
+.as-composer>div:focus-within{border-color:#b995dd;box-shadow:0 0 0 2px #b995dd33}
+.as-composer textarea{border:0;outline:0;resize:none;min-height:45px;max-height:95px;flex:1;padding:6px;font:inherit;font-size:11px;line-height:1.5;color:#2c2731}
+.as-composer textarea::placeholder{color:#aaa1ad}
+.as-composer button{width:34px;height:34px;min-width:34px;border:0;border-radius:9px;background:#d9f779;color:#2d3520;display:grid;place-items:center}
+.as-composer button:disabled{opacity:.4;cursor:not-allowed}
+.as-composer>span{display:flex;align-items:center;gap:4px;color:#a49dab;font-size:9px;margin-top:7px}
+
+@media(max-width:650px){.as-launcher{right:16px;bottom:16px;min-height:48px;padding:0 15px}
+.as-panel{inset:0;width:100vw;height:100dvh;max-height:none;border-radius:0;border:0}
+.as-header{padding-top:max(16px,env(safe-area-inset-top))}
+.as-composer{padding-bottom:max(13px,env(safe-area-inset-bottom))}
+.as-suggest{max-height:89px;overflow:hidden}
+}
+
+@media(prefers-reduced-motion:reduce){.as-launcher,.as-panel *{transition:none!important;animation:none!important}
+}
