@@ -1,0 +1,10 @@
+{
+  "description": "An AI-powered academic assistant that helps university students organize coursework, manage study tasks, and get personalized learning support in one focused dashboard.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
